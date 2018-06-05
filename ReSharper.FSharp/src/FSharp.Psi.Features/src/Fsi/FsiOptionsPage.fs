@@ -18,7 +18,7 @@ open JetBrains.Util
 
 [<OptionsPage("FsiOptionsPage", "Fsi", typeof<ProjectModelThemedIcons.Fsharp>, HelpKeyword = fsiHelpKeyword)>]
 type FsiOptionsPage
-        (lifetime, optionsContext, commonFileDialogs: ICommonFileDialogs, fsiDetector: FsiDetector) as this =
+        (lifetime, optionsContext, commonFileDialogs: ICommonFileDialogs, fsiDetector: IFsiDetector) as this =
     inherit SimpleOptionsPage(lifetime, optionsContext)
 
     do

@@ -33,37 +33,41 @@ open JetBrains.UI.RichText
 open JetBrains.Util
 open JetBrains.Util.dataStructures.TypedIntrinsics
 
+type IFsiDetector =
+    abstract GetSystemFsiDirectoryPath: unit -> FileSystemPath
+
 [<ShellComponent>]
 type FsiDetector(monoRuntimeDetector: MonoRuntimeDetector) =
-    member x.GetSystemFsiDirectoryPath() =
-        // todo: also check:
-        //   * Common7\IDE\CommonExtensions\Microsoft\FSharp per VS installation
-        //   * FSharp.Compiler.Tools package if installed in solution
-        //   * FCT package in nuget caches?
-        if PlatformUtil.IsRunningUnderWindows then
-            let fsSdkDir = PlatformUtils.GetProgramFiles86() / "Microsoft SDKs" / "F#"
-            fsSdkDir.GetChildDirectories()
-            |> Seq.choose (fun path ->
-                match Double.TryParse(path.Name, NumberStyles.Any, CultureInfo.InvariantCulture) with
-                | true, version ->
-                    let sdkPath = path / "Framework" / "v4.0"
-                    if not sdkPath.ExistsDirectory then None else
-                    Some (version, sdkPath)
-                | _ -> None)
-            |> Seq.sortByDescending fst
-            |> Seq.tryHead
-            |> Option.map snd
-            |> Option.defaultValue FileSystemPath.Empty
-        else
-            let runtimes = monoRuntimeDetector.DetectMonoRuntimes()
-            if runtimes.IsEmpty() then FileSystemPath.Empty else
-
-            // todo
-            runtimes.[0].RootPath / "bin"
+    interface IFsiDetector with
+        member x.GetSystemFsiDirectoryPath() =
+            // todo: also check:
+            //   * Common7\IDE\CommonExtensions\Microsoft\FSharp per VS installation
+            //   * FSharp.Compiler.Tools package if installed in solution
+            //   * FCT package in nuget caches?
+            if PlatformUtil.IsRunningUnderWindows then
+                let fsSdkDir = PlatformUtils.GetProgramFiles86() / "Microsoft SDKs" / "F#"
+                fsSdkDir.GetChildDirectories()
+                |> Seq.choose (fun path ->
+                    match Double.TryParse(path.Name, NumberStyles.Any, CultureInfo.InvariantCulture) with
+                    | true, version ->
+                        let sdkPath = path / "Framework" / "v4.0"
+                        if not sdkPath.ExistsDirectory then None else
+                        Some (version, sdkPath)
+                    | _ -> None)
+                |> Seq.sortByDescending fst
+                |> Seq.tryHead
+                |> Option.map snd
+                |> Option.defaultValue FileSystemPath.Empty
+            else
+                let runtimes = monoRuntimeDetector.DetectMonoRuntimes()
+                if runtimes.IsEmpty() then FileSystemPath.Empty else
+    
+                // todo
+                runtimes.[0].RootPath / "bin"
 
 
 [<SolutionComponent>]
-type FsiSessionsHost(lifetime, solutionModel: SolutionModel, fsiDetector: FsiDetector, fsiOptions: FsiOptionsProvider) =
+type FsiSessionsHost(lifetime, solutionModel: SolutionModel, fsiDetector: IFsiDetector, fsiOptions: FsiOptionsProvider) =
     let rdFsiHost =
         match solutionModel.TryGetCurrentSolution() with
         | null -> failwith "Could not get protocol solution"
