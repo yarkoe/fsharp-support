@@ -35,13 +35,27 @@ type ErrorsStageProcessBase(daemonProcess) =
             let endOffset = document.GetDocumentOffset(error.EndLineAlternate - 1, error.EndColumn)
             DocumentRange(document, TextRange(startOffset, endOffset))
 
-    let createHighlighting(error: FSharpErrorInfo, range: DocumentRange): IHighlighting =
-        let message = error.Message
-        match error.Severity, error.ErrorNumber with
-        | _, ErrorNumberUndefined -> UnresolvedHighlighting(message, range) :> _
-        | _, ErrorNumberUnused -> UnusedHighlighting(message, range) :> _
-        | FSharpErrorSeverity.Warning, _ -> WarningHighlighting(message, range) :> _
-        | _ -> ErrorHighlighting(message, range) :> _
+    abstract ShouldAddDiagnostic: error: FSharpErrorInfo * range: DocumentRange -> bool
+    default x.ShouldAddDiagnostic(error: FSharpErrorInfo, range: DocumentRange) =
+        error.ErrorNumber <> ErrorNumberUnrecognizedOption
+
+    member x.Execute(errors: FSharpErrorInfo[], committer: Action<DaemonStageResult>) =
+        let createHighlighting (error: FSharpErrorInfo) (range: DocumentRange): IHighlighting =
+            let message = error.Message
+
+            match error.Severity, error.ErrorNumber with
+            | _, ErrorNumberUndefined -> UnresolvedHighlighting(message, range) :> _
+            | _, ErrorNumberUnused -> UnusedHighlighting(message, range) :> _
+            | _, MemberHidesAbstractMember ->
+                match x.FSharpFile.FindTokenAt(TreeOffset(range.StartOffset.Offset)) with
+                | null -> WarningHighlighting(message, range) :> _
+                | token ->
+                
+                match token.GetContainingNode<IMemberDeclaration>() with
+                | null -> WarningHighlighting(message, range) :> _
+                | memberDeclaration -> MemberHidesAbstractMemberWarning(memberDeclaration, message) :> _
+            | FSharpErrorSeverity.Warning, _ -> WarningHighlighting(message, range) :> _
+            | _ -> ErrorHighlighting(message, range) :> _
 
     abstract ShouldAddDiagnostic: error: FSharpErrorInfo * range: DocumentRange -> bool
     default x.ShouldAddDiagnostic(error: FSharpErrorInfo, range: DocumentRange) =
