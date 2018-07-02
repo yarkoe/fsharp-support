@@ -4,6 +4,7 @@ open System
 open System.Runtime.CompilerServices
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
+[<AutoOpen>]
 module FSharpCheckerExtensions =
     let map (f: 'T -> 'U) (a: Async<'T>) : Async<'U> =
         async {
@@ -11,19 +12,14 @@ module FSharpCheckerExtensions =
             return f a
         }
 
-    type CheckResults =
-        | Ready of (FSharpParseFileResults * FSharpCheckFileResults) option
-        | StillRunning of Async<(FSharpParseFileResults * FSharpCheckFileResults) option>
-
-open FSharpCheckerExtensions
-
 [<Extension; Sealed; AbstractClass>]
 type FSharpCheckerExtensions =
     [<Extension>]
     static member ParseAndCheckDocument(checker: FSharpChecker, filePath: string, sourceText: string, options: FSharpProjectOptions, allowStaleResults: bool) =
+        let timeout = 1500
         let parseAndCheckFile =
             async {
-                let! parseResults, checkFileAnswer = checker.ParseAndCheckFileInProject(filePath, sourceText.GetHashCode(), sourceText, options)
+                let! parseResults, checkFileAnswer = checker.ParseAndCheckFileInProject(filePath, 0, sourceText, options)
                 return
                     match checkFileAnswer with
                     | FSharpCheckFileAnswer.Aborted ->
@@ -32,21 +28,20 @@ type FSharpCheckerExtensions =
                         Some (parseResults, checkFileResults)
             }
 
-        let tryGetFreshResultsWithTimeout() : Async<CheckResults> =
+        let tryGetFreshResultsWithTimeout() =
             async {
+                let! worker = Async.StartChild(parseAndCheckFile, timeout)
                 try
-                    let! worker = Async.StartChild(parseAndCheckFile, 1000)
-                    let! result = worker
-                    return Ready result
+                    return! worker
                 with :? TimeoutException ->
-                    return StillRunning parseAndCheckFile
+                    return None // worker is cancelled at this point, we cannot return it and wait its completion anymore
             }
 
         let bindParsedInput(results: (FSharpParseFileResults * FSharpCheckFileResults) option) =
             match results with
             | Some(parseResults, checkResults) ->
                 match parseResults.ParseTree with
-                | Some parsedInput -> Some (parseResults, checkResults)
+                | Some parsedInput -> Some (parseResults, parsedInput, checkResults)
                 | None -> None
             | None -> None
 
@@ -56,14 +51,14 @@ type FSharpCheckerExtensions =
 
                 let! results =
                     match freshResults with
-                    | Ready x -> async.Return x
-                    | StillRunning worker ->
+                    | Some x -> async.Return (Some x)
+                    | None ->
                         async {
-                            match allowStaleResults, checker.TryGetRecentCheckResultsForFile(filePath, options) with
-                            | true, Some (parseResults, checkFileResults, _) ->
+                            match checker.TryGetRecentCheckResultsForFile(filePath, options) with
+                            | Some (parseResults, checkFileResults, _) ->
                                 return Some (parseResults, checkFileResults)
-                            | _ ->
-                                return! worker
+                            | None ->
+                                return! parseAndCheckFile
                         }
                 return bindParsedInput results
             }
