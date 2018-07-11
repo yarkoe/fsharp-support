@@ -1,22 +1,21 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages
 
 open System
-open System.Collections.Generic
-open System.Text
-open JetBrains.Annotations
 open JetBrains.DocumentModel
 open JetBrains.ReSharper.Feature.Services.Daemon
+open JetBrains.ReSharper.Plugins.FSharp.Daemon.Analyzers
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs.Stages
-open JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages.Tooltips
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
+open JetBrains.ReSharper.Psi
 open JetBrains.Util
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
 [<AbstractClass>]
-type ErrorsStageProcessBase(daemonProcess) =
-    inherit FSharpDaemonStageProcessBase(daemonProcess)
+type ErrorsStageProcessBase(fsFile, daemonProcess) =
+    inherit FSharpDaemonStageProcessBase(fsFile, daemonProcess)
 
     // https://github.com/fsharp/FSharp.Compiler.Service/blob/9.0.0/src/fsharp/CompileOps.fs#L246
     // https://github.com/fsharp/FSharp.Compiler.Service/blob/9.0.0/src/fsharp/FSComp.txt
@@ -24,6 +23,7 @@ type ErrorsStageProcessBase(daemonProcess) =
     let [<Literal>] ErronNumberModuleOrNamespaceRequired = 222
     let [<Literal>] ErrorNumberUnrecognizedOption = 243
     let [<Literal>] ErrorNumberUnused = 1182
+    let [<Literal>] MemberHidesAbstractMember = 864
 
     let document = daemonProcess.Document
 
@@ -57,11 +57,7 @@ type ErrorsStageProcessBase(daemonProcess) =
             | FSharpErrorSeverity.Warning, _ -> WarningHighlighting(message, range) :> _
             | _ -> ErrorHighlighting(message, range) :> _
 
-    abstract ShouldAddDiagnostic: error: FSharpErrorInfo * range: DocumentRange -> bool
-    default x.ShouldAddDiagnostic(error: FSharpErrorInfo, range: DocumentRange) =
-        error.ErrorNumber <> ErrorNumberUnrecognizedOption
 
-    member x.Execute(errors: FSharpErrorInfo[], committer: Action<DaemonStageResult>) =
         let highlightings = LocalList(errors.Length)
         let errors =
             errors
@@ -70,7 +66,7 @@ type ErrorsStageProcessBase(daemonProcess) =
 
         for error, range in errors  do
             if x.ShouldAddDiagnostic(error, range) then
-                highlightings.Add(HighlightingInfo(range, createHighlighting(error, range)))
+                highlightings.Add(HighlightingInfo(range, createHighlighting error range))
             x.SeldomInterruptChecker.CheckForInterrupt()
 
         committer.Invoke(DaemonStageResult(highlightings.ReadOnlyList()))

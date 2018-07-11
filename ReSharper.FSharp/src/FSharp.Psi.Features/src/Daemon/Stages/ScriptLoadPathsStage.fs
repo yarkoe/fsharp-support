@@ -1,33 +1,30 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages
 
+open JetBrains.Application.Settings
 open System.Collections.Generic
-open System.Collections.ObjectModel
-open JetBrains.ProjectModel
+open JetBrains.ReSharper.Daemon.Stages
 open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs.Stages
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Highlightings
-open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
-open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
-open System
 
-[<DaemonStage(StagesBefore = [| typeof<DeadCodeHighlightStage> |], StagesAfter = [| typeof<HighlightIdentifiersStage> |])>]
-type ScritpLoadPathsStage(daemonProcess, errors) =
+[<DaemonStage(StagesBefore = [| typeof<GlobalFileStructureCollectorStage> |], StagesAfter = [| typeof<HighlightIdentifiersStage> |])>]
+type ScritpLoadPathsStage(errors) =
     inherit FSharpDaemonStageBase()
 
         override x.IsSupported(sourceFile, processKind) =
             processKind = DaemonProcessKind.VISIBLE_DOCUMENT && base.IsSupported(sourceFile, processKind)
 
-        override x.CreateProcess(fsFile, daemonProcess) =
-            ScriptLoadPathsStageProcess(fsFile, daemonProcess) :> _
+        override x.CreateProcess(fsFile: IFSharpFile, settings: IContextBoundSettingsStore, daemonProcess: IDaemonProcess) =
+            ScriptLoadPathsStageProcess(fsFile, daemonProcess) :> IDaemonStageProcess
 
 
 type ScriptLoadPathsStageProcess(fsFile, daemonProcess) =
-    inherit FSharpDaemonStageProcessBase(daemonProcess)
+    inherit FSharpDaemonStageProcessBase(fsFile, daemonProcess)
 
     override x.Execute(committer) =
         let interruptChecker = x.SeldomInterruptChecker
