@@ -5,9 +5,6 @@ open System.Collections.Generic
 open JetBrains.Annotations
 open JetBrains.Application
 open JetBrains.Application.Components
-open JetBrains.Metadata.Reader.API
-open JetBrains.Platform.MsBuildHost.Models
-open JetBrains.Platform.MsBuildHost.ProjectModel
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Assemblies.Impl
 open JetBrains.ProjectModel.Model2.Assemblies.Interfaces
@@ -20,7 +17,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ItemsContainer
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
-open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 open JetBrains.Util.Dotnet.TargetFrameworkIds
 open Microsoft.FSharp.Compiler.SourceCodeServices

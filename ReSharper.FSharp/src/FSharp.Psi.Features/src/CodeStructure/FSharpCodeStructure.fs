@@ -3,7 +3,6 @@ namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeStructure
 open System
 open System.Collections.Generic
 open JetBrains.Annotations
-open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.ReSharper.Feature.Services.CodeStructure
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree

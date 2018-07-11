@@ -25,6 +25,8 @@ type PaketTargetsProjectLoadModificator() =
             context.Targets.Add("PaketRestore")
 
 
+/// We've previously been disabling Rider's NuGet restore for solutions using Paket due to conflicts.
+/// These projects work properly now and we want to reset the restore setting (once per solution).
 [<SolutionInstanceComponent>]
 type PaketRestoreTargetsAnalyzer(lifetime, solution: ISolution, settingsStore: SettingsStore, logger: ILogger) =
     let mutable restoreOptionsWereReset = false

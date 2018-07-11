@@ -4,14 +4,12 @@ open System
 open System.Linq.Expressions
 open System.Runtime.InteropServices
 open JetBrains.Application
-open JetBrains.Application.Settings
 open JetBrains.Application.UI.Controls.FileSystem
 open JetBrains.Application.UI.Options
 open JetBrains.Application.UI.Options.OptionsDialog
 open JetBrains.DataFlow
 open JetBrains.ProjectModel.Resources
 open JetBrains.ReSharper.Host.Features.Settings.Layers.ExportImportWorkaround
-open JetBrains.ReSharper.Host.Features.Toolset
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.UI.RichText
 open JetBrains.Util

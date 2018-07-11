@@ -7,15 +7,11 @@ open JetBrains.DocumentModel
 open JetBrains.DocumentModel.Impl
 open JetBrains.ReSharper.Feature.Services.CodeCleanup
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
-open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.CodeStyle
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
-open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
-open Microsoft.FSharp.Compiler
 
 [<CodeCleanupModule>]
 type ReformatCode() =

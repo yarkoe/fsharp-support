@@ -1,13 +1,9 @@
 module JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages.Tooltips
 
 open System
-open System.Threading
-open System.Web
 open JetBrains.DocumentModel
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Daemon
-open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
-open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
@@ -17,11 +13,9 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
-open JetBrains.ReSharper.Resources.Shell
 open JetBrains.UI.RichText
 open JetBrains.Util
 open Microsoft.FSharp.Compiler.SourceCodeServices
-open JetBrains.ReSharper.Psi.Caches
 
 let [<Literal>] RiderTooltipSeparator = "_RIDER_HORIZONTAL_LINE_TOOLTIP_SEPARATOR_"
 

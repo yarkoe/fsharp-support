@@ -2,7 +2,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Debugger
 
 open System
 open System.Collections.Generic
-open JetBrains.DocumentModel
 open JetBrains.ReSharper.Feature.Services.Debugger
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
@@ -13,7 +12,6 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Rider.Model
 open JetBrains.Util
-open JetBrains.Util.dataStructures.TypedIntrinsics
 
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpBreakpointVariantsProvider() =

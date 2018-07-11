@@ -2,39 +2,20 @@ namespace rec JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 
 open System
 open System.Collections.Generic
-open System.Linq
-open System.Threading
-open System.Reflection
-open JetBrains
-open JetBrains.Annotations
-open JetBrains.Application
 open JetBrains.Application.changes
-open JetBrains.Application.Components
-open JetBrains.Application.Progress
-open JetBrains.Application.Threading
-open JetBrains.Application.Threading.Tasks
 open JetBrains.DataFlow
-open JetBrains.Metadata.Reader.API
-open JetBrains.Platform.MsBuildHost.Models
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Assemblies.Impl
 open JetBrains.ProjectModel.ProjectsHost
-open JetBrains.ProjectModel.ProjectsHost.MsBuild
-open JetBrains.ProjectModel.ProjectsHost.SolutionHost
-open JetBrains.ReSharper.Daemon.Impl
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
-open JetBrains.ReSharper.Resources.Shell
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ItemsContainer
-open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
 open JetBrains.Threading
 open JetBrains.Util
 open JetBrains.Util.Dotnet.TargetFrameworkIds
-open Microsoft.FSharp.Compiler
-open Microsoft.FSharp.Compiler.ErrorLogger
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
 [<SolutionComponent>]
@@ -120,7 +101,7 @@ type FSharpProjectOptionsProvider
         // todo: keep referencing projects for invalidating removed projects
         let referencesToProject = referenceResolveStore.GetReferencesToProject(project)
         if not (referencesToProject.IsEmpty()) then
-            logger.Info("Invalidatnig reverencing projects")
+            logger.Info("Invalidating reverencing projects")
             for reference in referencesToProject do
                 match reference.GetProject() with
                 | FSharpProject referencingProject when

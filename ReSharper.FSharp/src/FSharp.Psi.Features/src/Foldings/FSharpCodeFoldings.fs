@@ -10,7 +10,6 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.TextControl.DocumentMarkup
 open JetBrains.Util
-open JetBrains.Util.dataStructures.TypedIntrinsics
 open Microsoft.FSharp.Compiler.SourceCodeServices
 open Microsoft.FSharp.Compiler.SourceCodeServices.Structure
 

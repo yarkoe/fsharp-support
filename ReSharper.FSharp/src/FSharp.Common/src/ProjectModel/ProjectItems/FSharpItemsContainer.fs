@@ -9,9 +9,7 @@ open JetBrains.Application.Components
 open JetBrains.Application.DataContext
 open JetBrains.Application.PersistentMap
 open JetBrains.Application.Threading
-open JetBrains.Application.changes
 open JetBrains.DataFlow
-open JetBrains.Metadata.Reader.API
 open JetBrains.Platform.MsBuildHost.Models
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Caches
@@ -973,7 +971,7 @@ type IFSharpItemsContainerRefresher =
     /// Updates presentation (i.e. changes sort key) for a folder.
     abstract member Update: IProjectMark * folder: FileSystemPath * identity: FSharpViewFolderIdentity -> unit 
 
-    /// Used on changes we currenlty cannot process, e.g. Compile -> CompileBefore build action change.
+    /// Used on changes we currently cannot process, e.g. Compile -> CompileBefore build action change.
     abstract member ReloadProject: IProjectMark -> unit
 
     /// Selects an item after a project structure change that could make an item parent folder collapse.

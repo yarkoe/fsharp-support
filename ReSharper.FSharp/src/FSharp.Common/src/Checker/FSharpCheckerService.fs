@@ -4,14 +4,11 @@ open System
 open JetBrains
 open JetBrains.Annotations
 open JetBrains.Application
-open JetBrains.Application.Progress
-open JetBrains.DataFlow
 open JetBrains.ReSharper.Feature.Services
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.Util
-open JetBrains.Util.Logging
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.SourceCodeServices
 

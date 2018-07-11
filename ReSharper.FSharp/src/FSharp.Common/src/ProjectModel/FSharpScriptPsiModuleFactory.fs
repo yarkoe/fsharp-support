@@ -12,12 +12,9 @@ open JetBrains.DataFlow
 open JetBrains.DocumentManagers
 open JetBrains.DocumentManagers.impl
 open JetBrains.DocumentModel
-open JetBrains.Metadata.Reader.API
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Assemblies.Impl
-open JetBrains.ProjectModel.Model2.Assemblies.Impl
 open JetBrains.ProjectModel.Model2.Assemblies.Interfaces
-open JetBrains.ProjectModel.Transaction
 open JetBrains.ProjectModel.model2.Assemblies.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util

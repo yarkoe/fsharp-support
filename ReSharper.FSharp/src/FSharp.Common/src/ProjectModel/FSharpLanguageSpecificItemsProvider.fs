@@ -1,7 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 
 open System
-open System.Collections.Generic
 open JetBrains.Application
 open JetBrains.Platform.MsBuildHost.Models
 open JetBrains.ProjectModel

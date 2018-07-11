@@ -14,7 +14,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi.Tree
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.Ast
-open Microsoft.FSharp.Compiler.SourceCodeServices
 open Microsoft.FSharp.Compiler.SourceCodeServices.AstTraversal
 
 type FSharpSelection(file, range, parentRanges: DocumentRange list) =

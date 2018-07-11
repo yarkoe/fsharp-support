@@ -1,8 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 
-open JetBrains.Application
 open System
-open JetBrains.Application.Progress
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services.CodeCompletion
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure
@@ -12,13 +10,11 @@ open JetBrains.ReSharper.Feature.Services.CodeCompletion.Settings
 open JetBrains.ReSharper.Feature.Services.Lookup
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
-open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Services.Cs.CodeCompletion
 open JetBrains.ReSharper.Psi
-open JetBrains.UI.RichText
 open JetBrains.Util
 open Microsoft.FSharp.Compiler.SourceCodeServices
 

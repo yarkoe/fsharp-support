@@ -5,7 +5,6 @@ open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.ReSharper.Psi.Resources
 open JetBrains.UI.Icons
 open Microsoft.FSharp.Compiler.SourceCodeServices
-open Microsoft.FSharp.Compiler.SourceCodeServices.Extensions
 
 [<CompiledName("GetReturnType")>]
 let getReturnType (symbol: FSharpSymbol) =

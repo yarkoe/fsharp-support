@@ -1,11 +1,9 @@
 module JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ProjectStructure
 
 open System
-open System.Collections.Generic
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Host.Features.ProjectModel.View
 open JetBrains.ReSharper.Host.Features.ProjectModel.View.Appenders.ProjectStructure
-open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ItemsContainer
 open JetBrains.Rider.Model

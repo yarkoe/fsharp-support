@@ -5,7 +5,6 @@ open JetBrains.ReSharper.Feature.Services.Debugger
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Psi.Tree
 open Microsoft.FSharp.Compiler
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util

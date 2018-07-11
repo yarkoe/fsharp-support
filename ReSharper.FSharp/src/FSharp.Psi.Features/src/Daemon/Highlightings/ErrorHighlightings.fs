@@ -1,7 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Highlightings
 
 open System
-open JetBrains.Annotations
 open JetBrains.DocumentModel
 open JetBrains.ReSharper.Feature.Services.Daemon
 

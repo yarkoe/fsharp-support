@@ -1,37 +1,18 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Fsi
 
 open System
-open System.Diagnostics
 open System.Collections.Generic
 open System.Globalization
-open System.IO
-open System.Linq
 open System.Text
 open System.Threading
 open JetBrains.Application
-open JetBrains.Application.Settings
 open JetBrains.Application.platforms
-open JetBrains.DataFlow
-open JetBrains.DocumentModel
 open JetBrains.ProjectModel
-open JetBrains.Platform.RdFramework.Base
 open JetBrains.Platform.RdFramework.Util
-open JetBrains.ProjectModel.BuildTools
-open JetBrains.ReSharper.Feature.Services.Bulbs
-open JetBrains.ReSharper.Feature.Services.ContextActions
-open JetBrains.ReSharper.Feature.Services.Intentions
-open JetBrains.ReSharper.Feature.Services.Resources
 open JetBrains.ReSharper.Host.Features
 open JetBrains.ReSharper.Host.Features.Runtime
-open JetBrains.ReSharper.Host.Features.Toolset
-open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.Rider.Model
-open JetBrains.TextControl
-open JetBrains.UI.RichText
 open JetBrains.Util
-open JetBrains.Util.dataStructures.TypedIntrinsics
 
 type IFsiDetector =
     abstract GetSystemFsiDirectoryPath: unit -> FileSystemPath

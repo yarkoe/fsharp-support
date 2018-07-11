@@ -1,4 +1,4 @@
-﻿namespace JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
 
 open System
 open System.Collections.Generic
@@ -10,7 +10,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi.Parsing
-open JetBrains.ReSharper.Psi.TreeBuilder
 open JetBrains.Util
 open JetBrains.Util.dataStructures.TypedIntrinsics
 open Microsoft.FSharp.Compiler

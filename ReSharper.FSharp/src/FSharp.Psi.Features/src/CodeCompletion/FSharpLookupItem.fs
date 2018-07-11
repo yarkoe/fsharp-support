@@ -1,7 +1,6 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 
 open System
-open JetBrains.DocumentModel
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems.Impl
 open JetBrains.ReSharper.Feature.Services.Lookup
@@ -10,7 +9,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Services.Cs.CodeCompletion
-open JetBrains.Text
 open JetBrains.UI.Icons
 open JetBrains.UI.RichText
 open JetBrains.Util

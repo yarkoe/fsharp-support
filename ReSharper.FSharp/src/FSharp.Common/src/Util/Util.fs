@@ -1,22 +1,16 @@
-﻿namespace JetBrains.ReSharper.Plugins.FSharp.Common.Util
+namespace JetBrains.ReSharper.Plugins.FSharp.Common.Util
 
 [<AutoOpen>]
 module rec CommonUtil =
     open System
     open System.Collections.Generic
-    open System.Linq
     open System.Threading
     open JetBrains.Application
-    open JetBrains.Application.Progress
     open JetBrains.DataFlow
     open JetBrains.DocumentModel
     open JetBrains.ProjectModel
     open JetBrains.ProjectModel.ProjectsHost
-    open JetBrains.ProjectModel.Properties
-    open JetBrains.ProjectModel.Properties.CSharp
-    open JetBrains.ProjectModel.Properties.Managed
     open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectProperties
-    open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
     open JetBrains.ReSharper.Psi.Modules
     open JetBrains.Util
     open JetBrains.Util.dataStructures.TypedIntrinsics
