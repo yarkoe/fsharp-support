@@ -4,32 +4,18 @@ using System.Reflection;
 using JetBrains.Application.changes;
 using JetBrains.DataFlow;
 using JetBrains.Util;
-using Microsoft.FSharp.Compiler.AbstractIL;
 using static Microsoft.FSharp.Compiler.AbstractIL.Internal.Library;
 
 namespace JetBrains.ReSharper.Plugins.FSharp
 {
-    public abstract class AssemblyReaderShimBase : FileSystemShimChangeProvider, ILBinaryReader.Shim.IAssemblyReader
-    {
-        private readonly ILBinaryReader.Shim.IAssemblyReader myDefaultReader;
-
-        protected AssemblyReaderShimBase(Lifetime lifetime, ChangeManager changeManager) : base(lifetime, changeManager)
-        {
-            myDefaultReader = ILBinaryReader.Shim.AssemblyReader;
-            ILBinaryReader.Shim.AssemblyReader = this;
-            lifetime.AddAction(() => ILBinaryReader.Shim.AssemblyReader = myDefaultReader);
-        }
-
-        public virtual ILBinaryReader.ILModuleReader GetILModuleReader(string filename,
-            ILBinaryReader.ILReaderOptions readerOptions) => myDefaultReader.GetILModuleReader(filename, readerOptions);
-    }
-
     public abstract class FileSystemShimChangeProvider : DelegatingFileSystemShim
     {
         protected FileSystemShimChangeProvider(Lifetime lifetime, ChangeManager changeManager) : base(lifetime) =>
             changeManager.Changed2.Advise(lifetime, Execute);
 
-        public abstract void Execute(ChangeEventArgs changeEventArgs);
+        public virtual void Execute(ChangeEventArgs changeEventArgs)
+        {
+        }
     }
 
     public class DelegatingFileSystemShim : Shim.IFileSystem

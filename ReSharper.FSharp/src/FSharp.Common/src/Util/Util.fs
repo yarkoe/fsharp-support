@@ -87,6 +87,7 @@ module rec CommonUtil =
     type Line = Int32<DocLine>
     type Column = Int32<DocColumn>
     type FileSystemPath = JetBrains.Util.FileSystemPath
+    type StringUtil = JetBrains.Util.StringUtil
 
     let inline docLine (x: int)   = Line.op_Explicit(x)
     let inline docColumn (x: int) = Column.op_Explicit(x)
