@@ -214,7 +214,6 @@ type FSharpScriptOptionsProvider(logger: ILogger, checkerService: FSharpCheckerS
             let options, errors = getScriptOptionsAsync.RunAsTask()
             if not errors.IsEmpty then
                 logger.Warn("Script options for {0}: {1}", filePath, concatErrors errors)
-            let options = x.FixScriptOptions(options)
             Some options
         with
         | :? OperationCanceledException -> reraise()
@@ -222,6 +221,3 @@ type FSharpScriptOptionsProvider(logger: ILogger, checkerService: FSharpCheckerS
             logger.Warn("Error while getting script options for {0}: {1}", filePath, exn.Message)
             logger.LogExceptionSilently(exn)
             None)
-
-    member private x.FixScriptOptions(options) =
-        { options with OtherOptions = FSharpCoreFix.ensureCorrectFSharpCore options.OtherOptions }
