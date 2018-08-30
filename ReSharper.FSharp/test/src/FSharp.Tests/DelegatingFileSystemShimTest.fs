@@ -1,11 +1,12 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
 open System.IO
+open JetBrains.Application.Components
 open JetBrains.DataFlow
 open JetBrains.ReSharper.Plugins.FSharp
+open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.TestFramework
-open JetBrains.Util
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 open NUnit.Framework
 
@@ -21,6 +22,7 @@ type DelegatingFileSystemShimTest() =
 
     [<Test>]
     member x.``Getting path request``() =
+        x.ShellInstance.GetComponent<FSharpCheckerService>().InvalidateAll()
         x.DoTest(fun lifetime writer ->
             let shim = LoggingShim(shim1name, lifetime, writer)
             Shim.FileSystem.GetLastWriteTimeShim(fakePath) |> ignore)

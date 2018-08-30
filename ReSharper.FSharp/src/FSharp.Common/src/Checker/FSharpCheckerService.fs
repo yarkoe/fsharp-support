@@ -72,6 +72,8 @@ type FSharpCheckerService(lifetime, logger: ILogger, onSolutionCloseNotifier: On
             x.Checker.TryGetRecentCheckResultsForFile(file.GetLocation().FullPath, options)
             |> Option.map (fun (_, checkResults, _) -> checkResults))
 
+    member x.InvalidateAll() = x.Checker.ClearLanguageServiceRootCachesAndCollectAndFinalizeAllTransients()
+
 
 type FSharpParseAndCheckResults = 
     { ParseResults: FSharpParseFileResults
