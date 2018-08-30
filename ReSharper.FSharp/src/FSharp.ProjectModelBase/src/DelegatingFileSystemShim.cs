@@ -18,9 +18,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp
     }
   }
 
-  public class DelegatingFileSystemShim : Shim.IFileSystem
+  public abstract class DelegatingFileSystemShim : Shim.IFileSystem
   {
-    public DelegatingFileSystemShim(Lifetime lifetime)
+    protected DelegatingFileSystemShim(Lifetime lifetime)
     {
       OverridenFileSystem = Shim.FileSystem;
       IsOverridingDelegating = OverridenFileSystem is DelegatingFileSystemShim;

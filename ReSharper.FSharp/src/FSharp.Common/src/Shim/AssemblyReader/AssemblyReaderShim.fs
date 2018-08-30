@@ -1,18 +1,16 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader
 
-open System
 open System.Collections.Concurrent
 open JetBrains.Application.changes
 open JetBrains.DataFlow
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
-open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader.IL
+open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader.ModuleReader
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.FileSystem
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Resources.Shell
-open Microsoft.FSharp.Compiler.AbstractIL.ILBinaryReader
 
 type ReferencedAssembly =
     /// An output of a psi source project except for F# projects.
@@ -22,16 +20,17 @@ type ReferencedAssembly =
     | Ignored
 
 
-/// Overrides default FCS assemblies reader to use the symbol cache for known non-F# projects.
+/// Overrides default FCS assemblies reader to use ReSharper symbol cache for known non-F# projects.
 [<SolutionComponent>]
 type AssemblyReaderShim
-        (lifetime: Lifetime, changeManager: ChangeManager, psiModules: IPsiModules, typeRefs: TypeRefsCache,
+        (lifetime: Lifetime, changeManager: ChangeManager, psiModules: IPsiModules, cache: ModuleReaderCache,
          assemblyTimestampCache: AssemblyTimestampCache) =
     inherit AssemblyReaderShimBase(lifetime, changeManager)
 
     let assemblyReaders = ConcurrentDictionary<FileSystemPath, ReferencedAssembly>()
 
     let isSupported (project: IProject) =
+        isNotNull project &&
         project.ProjectProperties.DefaultLanguage != FSharpProjectLanguage.Instance &&
 
         match project.ProjectProperties.ProjectKind with
@@ -49,7 +48,7 @@ type AssemblyReaderShim
         if not (isSupported project) then Ignored else
 
         let psiModule =
-            // review: can there be multiple project psi modules for one output path?
+            // review: can there be multiple project psi modules corresponding to a single output path?
             project.GetPsiModules() |> Seq.tryFind (fun psiModule ->
                 match project.GetOutputAssemblyInfo(psiModule.TargetFrameworkId) with
                 | null -> false
@@ -57,11 +56,12 @@ type AssemblyReaderShim
 
         match psiModule with
         | None -> Ignored
-        | Some psiModule -> ProjectOutput (new ModuleReader(psiModule, typeRefs))
+        | Some psiModule -> ProjectOutput (new ModuleReader(psiModule, cache))
 
     let getReader path =
-        match assemblyReaders.TryGetValue(path) with
-        | true, reader -> reader
+        let mutable reader = Unchecked.defaultof<_>
+        match assemblyReaders.TryGetValue(path, &reader) with
+        | true -> reader
         | _ ->
 
         let reader = createReader path
@@ -82,16 +82,7 @@ type AssemblyReaderShim
         | ProjectOutput _ -> true
         | _ -> base.Exists(path)
 
-    override x.GetILModuleReader(filename, readerOptions) =
-        base.GetILModuleReader(filename, readerOptions)
-
-type ModuleReader(psiModule: IPsiModule, typeRefs: TypeRefsCache) =
-    let psiServices = psiModule.GetPsiServices()
-    let symbolScope = psiServices.Symbols.GetSymbolScope(psiModule, false, true)
-
-    member val TimeStamp = DateTime.MinValue with get, set
-
-    interface ILModuleReader with
-        member x.ILModuleDef = Unchecked.defaultof<_> // todo
-        member x.ILAssemblyRefs = []
-        member x.Dispose() = ()
+    override x.GetModuleReader(path, readerOptions) =
+        match getReader path with
+        | ProjectOutput reader -> reader :> _
+        | _ -> base.GetModuleReader(path, readerOptions)

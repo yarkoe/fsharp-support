@@ -19,7 +19,7 @@
     <Compile Include="src\ProjectModel\ProjectItems\ProjectStructure.fs" />
     <Compile Include="src\Shim\FileSystem\FSharpSourceCache.fs" />
     <Compile Include="src\Shim\FileSystem\AssemblyTimestampCache.fs" />
-    <Compile Include="src\Shim\AssemblyReader\IL.fs" />
+    <Compile Include="src\Shim\AssemblyReader\ModuleReader.fs" />
     <Compile Include="src\Shim\AssemblyReader\AssemblyReaderShim.fs" />
     <Compile Include="src\Util\FSharpAttributesUtil.fs" />
     <Compile Include="src\Util\FSharpSymbolUtil.fs" />
