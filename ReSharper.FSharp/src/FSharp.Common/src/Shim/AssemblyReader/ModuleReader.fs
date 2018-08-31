@@ -60,7 +60,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                 let typeSpec = ILTypeSpec.Create(typeRef, typeArgs)
                 ILType.Boxed typeSpec // todo: intern
 
-            | _ -> failwithf "mkType: %O" typ
+            | _ -> failwithf "mkType: resolved element: %O" typ
 
         | :? IArrayType as arrayType ->
             let elementType = mkType fromModule arrayType.ElementType
@@ -71,14 +71,24 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             let elementType = mkType fromModule pointerType.ElementType
             ILType.Ptr elementType // todo: intern
 
-        | _ -> failwithf "mkType: %O" typ
+        | _ -> failwithf "mkType: type: %O" typ
+
+    let getEnumInstanceValue (enum: IEnum): ILFieldDef =
+        let name = "value__"
+        let fieldType =
+            let enumType =
+                let enumType = enum.GetUnderlyingType()
+                if not enumType.IsUnknown then enumType else
+                psiModule.GetPredefinedType().Int :> _
+            mkType psiModule enumType
+        let attributes = FieldAttributes.Public ||| FieldAttributes.SpecialName ||| FieldAttributes.RTSpecialName
+        ILFieldDef(name, fieldType, attributes, None, None, None, None, emptyILCustomAttrs)
 
     let mkGenericVariance (variance: TypeParameterVariance): ILGenericVariance =
         match variance with
-        | TypeParameterVariance.INVARIANT -> ILGenericVariance.NonVariant
         | TypeParameterVariance.IN -> ILGenericVariance.ContraVariant
         | TypeParameterVariance.OUT -> ILGenericVariance.CoVariant
-        | _ -> failwithf "mkGenericVariance: %O" variance
+        | _ -> ILGenericVariance.NonVariant
 
     let mkGenericParameterDef (fromModule: IPsiModule) (typeParameter: ITypeParameter): ILGenericParameterDef =
         let typeConstraints =
@@ -97,6 +107,89 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
           CustomAttrsStored = attributes
           MetadataIndex = NoMetadataIdx }
 
+    let mkField (fromModule: IPsiModule) (field: IField): ILFieldDef =
+        let name = field.ShortName
+        let attributes = mkFieldAttributes field
+
+        let fieldType = mkType fromModule field.Type
+        let data = None
+        let offset = None
+        let literalValue = cache.GetLiteralValue(field)
+        let marshal = None
+        let customAttrs = mkILCustomAttrs []
+
+        ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs)
+
+    let mkTypeDef (typeElement: ITypeElement) (clrTypeName: IClrTypeName): ILTypeDef =
+        // todo: read members lazily
+
+        let name =
+            match typeElement.GetContainingType() with
+            | null -> clrTypeName.FullName
+            | _ -> mkNameFromClrTypeName clrTypeName
+
+        let extends =
+            // todo: intern
+            match typeElement with
+            | :? IClass as c ->
+                match c.GetBaseClassType() with
+                | null -> Some (mkType psiModule (psiModule.GetPredefinedType().Object))
+                | baseType -> Some (mkType psiModule baseType)
+
+            | :? IInterface -> None
+
+            // todo: check structs, enums, delegates
+            | _ ->
+                let superTypes =
+                    typeElement.GetSuperTypes()
+                    |> Seq.map (fun t -> t.GetTypeElement())
+
+                match superTypes.WhereNotNull().OfType<IClass>().FirstOrDefault() with
+                | null -> Some (mkType psiModule (psiModule.GetPredefinedType().Object))
+                | baseType -> Some (mkType psiModule (TypeFactory.CreateType(baseType)))
+
+        let fields =
+            let fields =
+                match typeElement with
+                | :? IClass as c -> c.Fields |> Seq.append c.Constants
+                | :? IEnum as e -> e.EnumMembers :> _
+                | :? IStruct as s -> s.Fields |> Seq.append s.Constants
+                | _ -> EmptyList.Instance :> _
+
+            match fields |> List.ofSeq with
+            | [] -> emptyILFields
+            | fields ->
+
+            let fields = fields |> List.map (mkField psiModule)
+            match typeElement with
+            | :? IEnum as enum -> (getEnumInstanceValue enum :: fields)
+            | _ -> fields
+            |> mkILFields
+
+        let attributes = mkTypeAttributes typeElement
+
+        let implements = []
+        let genericParams = []
+        let nestedTypes = emptyILTypeDefs
+
+        ILTypeDef
+            (name, attributes, ILTypeDefLayout.Auto, implements, genericParams, extends, emptyILMethods, nestedTypes,
+             fields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls, emptyILCustomAttrs)
+
+    member x.GetTypeDef(clrTypeName: IClrTypeName) =
+        use cookie = ReadLockCookie.Create()
+        match symbolScope.GetTypeElementByCLRName(clrTypeName) with
+        | null ->
+            // The type doesn't exist in the module anymore.
+            // It should mean the project has changed and FCS will be invalidating this module.
+            mkDummyTypeDef clrTypeName.ShortName
+
+        // When there are multiple types with given clr name in the module we'll get some first one here.
+        // todo: add a test for the case above
+        | typeElement ->
+            use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+            mkTypeDef typeElement clrTypeName
+
     member x.Module = psiModule
     member x.SymbolScope = symbolScope
 
@@ -111,7 +204,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
             use readLockCookie = ReadLockCookie.Create()
 
-            // todo: change when reading assemblies as well
+            // todo: change this when reading assemblies as well
             let project = psiModule.ContainingProjectModule :?> IProject
             let moduleName = project.Name
             let assemblyName = project.GetOutputAssemblyName(psiModule.TargetFrameworkId)
@@ -155,7 +248,11 @@ type ModuleReaderCache(lifetime, changeManager) =
     inherit ChangeListenerBase(lifetime, changeManager)
 
     let assemblyRefs = ConcurrentDictionary<AssemblyNameInfo, ILScopeRef>()
+
+    /// References to type in the same module.
     let localTypeRefs = ConcurrentDictionary<IClrTypeName, ILTypeRef>()
+
+    /// References to types in a different assemblies (currently keyed by primary psi module).
     let assemblyTypeRefs = ConcurrentDictionary<IPsiModule, ConcurrentDictionary<IClrTypeName, ILTypeRef>>()
 
     let cultures = DataIntern()
@@ -226,21 +323,6 @@ type ModuleReaderCache(lifetime, changeManager) =
 
     let nullLiteralValue = Some ILFieldInit.Null
 
-    let mkLiteralValue (value: ConstantValue): ILFieldInit option =
-        if value.IsBadValue() then None else
-        if value.IsNull() then nullLiteralValue else
-
-        // A separate case to prevent interning string literals.
-        if value.IsString() then Some (ILFieldInit.String (unbox value.Value)) else
-
-        match value.Type with
-        | :? IDeclaredType as declaredType ->
-            let mutable literalType = Unchecked.defaultof<_>
-            match literalTypes.TryGetValue(declaredType.GetClrName(), &literalType) with
-            | true -> literalValues.Intern(Some (literalType value.Value))
-            | _ -> None
-        | _ -> None
-
     let getAssemblyTypeRefCache (targetModule: IPsiModule) =
         let mutable cache = Unchecked.defaultof<_>
         match assemblyTypeRefs.TryGetValue(targetModule, &cache) with
@@ -250,6 +332,29 @@ type ModuleReaderCache(lifetime, changeManager) =
         let cache = ConcurrentDictionary()
         assemblyTypeRefs.[targetModule] <- cache
         cache
+
+    member x.GetLiteralValue(field: IField): ILFieldInit option =
+        let value = field.ConstantValue
+
+        if value.IsBadValue() then None else
+        if value.IsNull() then nullLiteralValue else
+
+        // A separate case to prevent interning string literals.
+        if value.IsString() then Some (ILFieldInit.String (unbox value.Value)) else
+
+        let valueType =
+            if not field.IsEnumMember then field.Type else
+            match field.GetContainingType() with
+            | :? IEnum as enum -> enum.GetUnderlyingType()
+            | _ -> null
+
+        match valueType with
+        | :? IDeclaredType as declaredType ->
+            let mutable literalType = Unchecked.defaultof<_>
+            match literalTypes.TryGetValue(declaredType.GetClrName(), &literalType) with
+            | true -> literalValues.Intern(Some (literalType value.Value))
+            | _ -> None
+        | _ -> None
 
     member x.GetTypeRef(fromModule: IPsiModule, typeElement: ITypeElement) =
         let clrTypeName = typeElement.GetClrName()
@@ -310,7 +415,7 @@ type ModuleReaderCache(lifetime, changeManager) =
                 | _ -> ()
 
 
-type PreTypeDef(clrTypeName: IClrTypeName, moduleReader: ModuleReader) =
+type PreTypeDef(clrTypeName: IClrTypeName, reader: ModuleReader) =
     member x.Name =
         let typeName = clrTypeName.TypeNames.Last()
         mkNameFromTypeNameAndParamsNumber typeName
@@ -319,25 +424,20 @@ type PreTypeDef(clrTypeName: IClrTypeName, moduleReader: ModuleReader) =
         member x.Name = x.Name
 
         member x.Namespace =
-            if clrTypeName.TypeNames.IsSingle() then [] else
+            if not (clrTypeName.TypeNames.IsSingle()) then [] else
             clrTypeName.NamespaceNames |> List.ofSeq
 
         member x.GetTypeDef() =
-            match moduleReader.SymbolScope.GetTypeElementByCLRName(clrTypeName) with
-            | null ->
-                // The type doesn't exist in the module anymore.
-                // It means the project has changed and FCS will be invalidating this module.
-                mkDummyTypeDef x.Name
-
-            // When there are multiple types with given clr name in the module we'll get some first one here.
-            // todo: add a test for the case above
-            | typeElement ->
-                use cookie = CompilationContextCookie.GetOrCreate(moduleReader.Module.GetContextFromModule())
-                mkDummyTypeDef typeElement.ShortName // todo
+            reader.GetTypeDef(clrTypeName)
 
 
 let mkDummyTypeDef name: ILTypeDef =
-    let attributes = TypeAttributes.Public ||| TypeAttributes.Class
+    let failOnDummyTypeDefs = true // todo: move to a component, fail in tests only
+
+    if failOnDummyTypeDefs then
+        failwithf "mkDummyTypeDef %O" name
+
+    let attributes = enum 0
     let implements = []
     let genericParams = []
     let extends = None
@@ -370,6 +470,68 @@ let isDll (project: IProject) =
     | :? IManagedProjectBuildSettings as buildSettings ->
         buildSettings.OutputType = ProjectOutputType.LIBRARY
     | _ -> false
+
+
+let mkFieldAttributes (field: IField): FieldAttributes =
+    let accessRights =
+        match field.GetAccessRights() with
+        | AccessRights.PUBLIC -> FieldAttributes.Public
+        | AccessRights.INTERNAL -> FieldAttributes.Assembly
+        | AccessRights.PRIVATE -> FieldAttributes.Private
+        | AccessRights.PROTECTED -> FieldAttributes.Family
+        | AccessRights.PROTECTED_OR_INTERNAL -> FieldAttributes.FamORAssem
+        | AccessRights.PROTECTED_AND_INTERNAL -> FieldAttributes.FamANDAssem
+        | _ -> enum 0
+
+    accessRights |||
+    (if field.IsStatic then FieldAttributes.Static else enum 0) |||
+    (if field.IsReadonly then FieldAttributes.InitOnly else enum 0) |||
+    (if field.IsConstant || field.IsEnumMember then FieldAttributes.Literal else enum 0)
+
+
+let mkTypeAccessRights (typeElement: ITypeElement): TypeAttributes =
+    match typeElement with
+    | :? IAccessRightsOwner as accessRightsOwner ->
+        let accessRights = accessRightsOwner.GetAccessRights()
+        if isNull (typeElement.GetContainingType()) then
+            match accessRights with
+            | AccessRights.PUBLIC -> TypeAttributes.Public
+            | _ -> enum 0
+        else
+            match accessRights with
+            | AccessRights.PUBLIC -> TypeAttributes.NestedPublic
+            | AccessRights.INTERNAL -> TypeAttributes.NestedAssembly
+            | AccessRights.PROTECTED -> TypeAttributes.NestedFamily
+            | AccessRights.PROTECTED_OR_INTERNAL -> TypeAttributes.NestedFamORAssem
+            | AccessRights.PROTECTED_AND_INTERNAL -> TypeAttributes.NestedFamANDAssem
+            | AccessRights.PRIVATE -> TypeAttributes.NestedPrivate
+            | _ -> TypeAttributes.NestedAssembly
+    | _ -> enum 0
+
+
+let mkTypeAttributes (typeElement: ITypeElement): TypeAttributes =
+    // These attributes are ignored by FCS when reading types: BeforeFieldInit.
+
+    let kind =
+        match typeElement with
+        | :? IClass as c ->
+            (if c.IsAbstract then TypeAttributes.Abstract else enum 0) |||
+            (if c.IsSealed then TypeAttributes.Sealed else enum 0)
+
+        | :? IInterface as i ->
+            TypeAttributes.Interface
+
+        | :? IEnum as e ->
+            TypeAttributes.Sealed
+
+        // todo: structs
+        // todo: delegates
+        | _ -> enum 0
+
+    // todo: add tests
+    let accessRights = mkTypeAccessRights typeElement
+
+    kind ||| accessRights
 
 
 module DummyModuleDefValues =

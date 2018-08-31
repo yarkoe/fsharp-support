@@ -10,6 +10,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Common
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Services.ContextActions
+open JetBrains.ReSharper.Plugins.FSharp.Tests
 open JetBrains.ReSharper.Psi
 open JetBrains.Util
 open Microsoft.FSharp.Compiler.SourceCodeServices
@@ -48,18 +49,19 @@ type AddAssembliesToSubplatform() =
 
 
 [<SolutionComponent>]
-type FSharpTestProjectOptionsProvider(lifetime: Lifetime, checkerService: FSharpCheckerService) as this =
+type FSharpTestProjectOptionsProvider
+        (lifetime: Lifetime, checkerService: FSharpCheckerService,
+         referencesProvider: ITestReferencesProvider) as this =
     do
         checkerService.OptionsProvider <- this
         lifetime.AddAction(fun _ -> checkerService.OptionsProvider <- Unchecked.defaultof<_>) |> ignore
 
-    let getPath (sourceFile: IPsiSourceFile) = sourceFile.GetLocation().FullPath
-
-    let getProjectOptions fileName references =
-        { ProjectFileName = fileName + ".fsproj"
+    let getProjectOptions (sourceFile: IPsiSourceFile) (references: FileSystemPath[]) =
+        let path = sourceFile.GetLocation().FullPath
+        { ProjectFileName = path + ".fsproj"
           ProjectId = None
-          SourceFiles = [| fileName |]
-          OtherOptions = Array.map ((+) "-r:") references
+          SourceFiles = [| path |]
+          OtherOptions = references |> Array.map (fun path -> "-r:" + path.FullPath)
           ReferencedProjects = Array.empty
           IsIncompleteTypeCheckEnvironment = false
           UseScriptResolutionRules = false
@@ -74,8 +76,7 @@ type FSharpTestProjectOptionsProvider(lifetime: Lifetime, checkerService: FSharp
     interface IFSharpProjectOptionsProvider with
         member x.HasPairFile(file) = false
         member x.GetProjectOptions(file) =
-            let path = getPath file
-            let projectOptions = getProjectOptions path [||]
+            let projectOptions = getProjectOptions file referencesProvider.References
             Some projectOptions
 
         member x.GetParsingOptions(file) =
@@ -90,5 +91,5 @@ type FSharpTestProjectOptionsProvider(lifetime: Lifetime, checkerService: FSharp
                 | _ -> false
 
             { FSharpParsingOptions.Default with
-                SourceFiles = [| getPath file |]
+                SourceFiles = [| file.GetLocation().FullPath |]
                 IsExe = isExe }

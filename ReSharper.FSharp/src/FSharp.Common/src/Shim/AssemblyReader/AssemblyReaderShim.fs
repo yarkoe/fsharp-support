@@ -24,19 +24,10 @@ type ReferencedAssembly =
 [<SolutionComponent>]
 type AssemblyReaderShim
         (lifetime: Lifetime, changeManager: ChangeManager, psiModules: IPsiModules, cache: ModuleReaderCache,
-         assemblyTimestampCache: AssemblyTimestampCache) =
+         projectsByOutput: IProjectsByOutput, assemblyTimestampCache: AssemblyTimestampCache) =
     inherit AssemblyReaderShimBase(lifetime, changeManager)
 
     let assemblyReaders = ConcurrentDictionary<FileSystemPath, ReferencedAssembly>()
-
-    let isSupported (project: IProject) =
-        isNotNull project &&
-        project.ProjectProperties.DefaultLanguage != FSharpProjectLanguage.Instance &&
-
-        match project.ProjectProperties.ProjectKind with
-        | ProjectKind.REGULAR_PROJECT
-        | ProjectKind.WEB_SITE -> true
-        | _ -> false
 
     let isAssembly (path: FileSystemPath) =
         let extension = path.ExtensionNoDot
@@ -44,19 +35,9 @@ type AssemblyReaderShim
 
     let createReader (path: FileSystemPath) =
         use readLockCookie = ReadLockCookie.Create()
-        let project = psiModules.GetProjectByOutputAssembly(path)
-        if not (isSupported project) then Ignored else
-
-        let psiModule =
-            // review: can there be multiple project psi modules corresponding to a single output path?
-            project.GetPsiModules() |> Seq.tryFind (fun psiModule ->
-                match project.GetOutputAssemblyInfo(psiModule.TargetFrameworkId) with
-                | null -> false
-                | outputAssemblyInfo -> outputAssemblyInfo.Location = path)
-
-        match psiModule with
-        | None -> Ignored
-        | Some psiModule -> ProjectOutput (new ModuleReader(psiModule, cache))
+        match projectsByOutput.GetProjectPsiModuleByOutputAssembly(path) with
+        | null -> Ignored
+        | psiModule -> ProjectOutput (new ModuleReader(psiModule, cache))
 
     let getReader path =
         let mutable reader = Unchecked.defaultof<_>
@@ -65,7 +46,7 @@ type AssemblyReaderShim
         | _ ->
 
         let reader = createReader path
-        assemblyReaders.[path] <- reader
+//        assemblyReaders.[path] <- reader // todo: fix races in tests when uncommenting
         reader
 
     override x.GetLastWriteTime(path) =
@@ -86,3 +67,33 @@ type AssemblyReaderShim
         match getReader path with
         | ProjectOutput reader -> reader :> _
         | _ -> base.GetModuleReader(path, readerOptions)
+
+
+/// Extracted interface for overriding in tests.
+type IProjectsByOutput =
+    abstract member GetProjectPsiModuleByOutputAssembly: path: FileSystemPath -> IPsiModule
+
+
+[<SolutionComponent>]
+type ProjectsByOutput(psiModules: IPsiModules) =
+    let isSupported (project: IProject) =
+        isNotNull project &&
+        project.ProjectProperties.DefaultLanguage != FSharpProjectLanguage.Instance &&
+
+        match project.ProjectProperties.ProjectKind with
+        | ProjectKind.REGULAR_PROJECT
+        | ProjectKind.WEB_SITE -> true
+        | _ -> false
+
+    interface IProjectsByOutput with
+        member x.GetProjectPsiModuleByOutputAssembly(path) =
+            let project = psiModules.GetProjectByOutputAssembly(path)
+            if not (isSupported project) then null else
+
+            // review: can there be multiple project psi modules corresponding to a single output path?
+            project.GetPsiModules()
+            |> Seq.tryFind (fun psiModule ->
+                match project.GetOutputAssemblyInfo(psiModule.TargetFrameworkId) with
+                | null -> false
+                | outputAssemblyInfo -> outputAssemblyInfo.Location = path)
+            |> Option.toObj
