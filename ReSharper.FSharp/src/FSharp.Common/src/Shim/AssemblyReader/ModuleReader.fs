@@ -22,8 +22,7 @@ open Microsoft.FSharp.Compiler.AbstractIL.IL
 open Microsoft.FSharp.Compiler.AbstractIL.ILBinaryReader
 
 type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
-    let psiServices = psiModule.GetPsiServices()
-    let symbolScope = psiServices.Symbols.GetSymbolScope(psiModule, false, true)
+    let symbolScope = psiModule.GetPsiServices().Symbols.GetSymbolScope(psiModule, false, true)
 
     let mutable cachedModuleDef: ILModuleDef option = None
 
@@ -73,6 +72,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         | _ -> failwithf "mkType: type: %O" typ
 
+
     let mkEnumInstanceValue (enum: IEnum): ILFieldDef =
         let name = "value__"
         let fieldType =
@@ -83,6 +83,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             mkType psiModule enumType
         let attributes = FieldAttributes.Public ||| FieldAttributes.SpecialName ||| FieldAttributes.RTSpecialName
         ILFieldDef(name, fieldType, attributes, None, None, None, None, emptyILCustomAttrs)
+
 
     let mkParam (fromModule: IPsiModule) (param: IParameter): ILParameter =
         let name = param.ShortName
@@ -103,28 +104,11 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
           CustomAttrsStored = storeILCustomAttrs emptyILCustomAttrs // todo
           MetadataIndex = NoMetadataIdx }
 
-    let mkMethodAux name ret parameters methodAttrs genericParams (meth: IFunction): ILMethodDef =
-        let implAttributes = MethodImplAttributes.Managed
-        let callingConv = mkCallingConv meth
-        let body = methodBodyUnavailable
-        let securityDecls = emptyILSecurityDecls
-        let isEntryPoint = false
-        let customAttrs = emptyILCustomAttrs
+    let mkParams (method: IFunction): ILParameter list =
+        method.Parameters
+        |> List.ofSeq
+        |> List.map (mkParam psiModule)
 
-        ILMethodDef
-            (name, methodAttrs, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams,
-             securityDecls, customAttrs)
-
-    let mkCtor (fromModule: IPsiModule) (ctor: IConstructor): ILMethodDef =
-        let name = DeclaredElementConstants.CONSTRUCTOR_NAME
-        let attributes = mkMethodAttributes ctor ||| MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName
-
-        let parameters =
-            ctor.Parameters
-            |> List.ofSeq
-            |> List.map (mkParam fromModule)
-
-        mkMethodAux name voidReturn parameters attributes [] ctor
 
     let mkGenericVariance (variance: TypeParameterVariance): ILGenericVariance =
         match variance with
@@ -149,6 +133,33 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
           CustomAttrsStored = attributes
           MetadataIndex = NoMetadataIdx }
 
+
+    let mkMethod (fromModule: IPsiModule) (method: IFunction): ILMethodDef =
+        let name = method.ShortName
+        let attributes = mkMethodAttributes method
+        let callingConv = mkCallingConv method
+        let parameters = mkParams method
+        let ret = mkType fromModule method.ReturnType |> mkILReturn
+
+        let genericParams =
+            match method with
+            | :? IMethod as method ->
+                method.TypeParameters
+                |> Seq.map (mkGenericParameterDef fromModule)
+                |> List.ofSeq
+            | _ -> []
+
+        let implAttributes = MethodImplAttributes.Managed
+        let body = methodBodyUnavailable
+        let securityDecls = emptyILSecurityDecls
+        let isEntryPoint = false
+        let customAttrs = emptyILCustomAttrs
+
+        ILMethodDef
+            (name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams,
+             securityDecls, customAttrs)
+
+
     let mkField (fromModule: IPsiModule) (field: IField): ILFieldDef =
         let name = field.ShortName
         let attributes = mkFieldAttributes field
@@ -168,6 +179,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let customAttrs = mkILCustomAttrs []
 
         ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs)
+
 
     let mkTypeDef (typeElement: ITypeElement) (clrTypeName: IClrTypeName) (moduleReader: ModuleReader): ILTypeDef = // todo: move reader out
         use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
@@ -199,9 +211,9 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                 | baseType -> Some (mkType psiModule (TypeFactory.CreateType(baseType)))
 
         let methods =
-            typeElement.Constructors
+            typeElement.GetMembers().OfType<IFunction>()
             |> List.ofSeq
-            |> List.map (mkCtor psiModule)
+            |> List.map (mkMethod psiModule)
             |> mkILMethods
 
         let nestedTypes =
@@ -241,6 +253,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         ILTypeDef
             (name, attributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
              fields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls, emptyILCustomAttrs)
+
 
     member x.GetTypeDef(clrTypeName: IClrTypeName) =
         use cookie = ReadLockCookie.Create()
@@ -320,12 +333,13 @@ type ModuleReaderCache(lifetime, changeManager) =
 
     let assemblyRefs = ConcurrentDictionary<AssemblyNameInfo, ILScopeRef>()
 
-    /// References to type in the same module.
+    /// References to types in the same module.
     let localTypeRefs = ConcurrentDictionary<IClrTypeName, ILTypeRef>()
 
     /// References to types in a different assemblies (currently keyed by primary psi module).
     let assemblyTypeRefs = ConcurrentDictionary<IPsiModule, ConcurrentDictionary<IClrTypeName, ILTypeRef>>()
 
+    // todo: add interning test (e.g. for literal values)
     let cultures = DataIntern()
     let publicKeys = DataIntern()
     let literalValues = DataIntern()
@@ -552,6 +566,9 @@ let mkFieldAttributes (field: IField): FieldAttributes =
     (if field.IsConstant || field.IsEnumMember then FieldAttributes.Literal else enum 0)
 
 
+let methodSpecialNameAttrs =
+    MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName
+
 let mkMethodAttributes (method: IFunction): MethodAttributes =
     let accessRights =
         match method.GetAccessRights() with
@@ -568,7 +585,8 @@ let mkMethodAttributes (method: IFunction): MethodAttributes =
     (if method.IsStatic then MethodAttributes.Static else enum 0) |||
     (if method.IsSealed then MethodAttributes.Final else enum 0) |||
     (if method.IsVirtual then MethodAttributes.Virtual else enum 0) |||
-    (if not (method.GetHiddenMembers().IsEmpty()) then MethodAttributes.NewSlot else enum 0)
+    (if not (method.GetHiddenMembers().IsEmpty()) then MethodAttributes.NewSlot else enum 0) |||
+    (if method :? IConstructor || method :? IAccessor then methodSpecialNameAttrs else enum 0)
 
 
 let mkTypeAccessRights (typeElement: ITypeElement): TypeAttributes =

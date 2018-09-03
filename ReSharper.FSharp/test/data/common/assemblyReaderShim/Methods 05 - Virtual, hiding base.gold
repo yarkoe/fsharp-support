@@ -1,0 +1,14 @@
+﻿module Module
+
+type BarVirtual() =
+    inherit FooVirtual()
+
+    override x.GetType() = Unchecked.defaultof<_>
+
+type Bar() =
+    inherit Foo()
+
+    override x.|GetType|(0)() = Unchecked.defaultof<_>
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: No abstract or interface member was found that corresponds to this override

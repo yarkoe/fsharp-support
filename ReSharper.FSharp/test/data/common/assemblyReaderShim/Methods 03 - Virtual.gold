@@ -1,0 +1,10 @@
+﻿module Module
+
+type Bar() =
+    inherit Foo()
+
+    override x.VirtualMethod() = ()
+    override x.|Method|(0)() = ()
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: No abstract or interface member was found that corresponds to this override

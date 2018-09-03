@@ -1,0 +1,11 @@
+﻿module Module
+
+type Bar() =
+    inherit Foo()
+
+    override x.Method(param) = ()
+    override x.|Method|(0)() = ()
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: This override takes a different number of arguments to the corresponding abstract member. The following abstract members were found:
+   Foo.Method(param: int) : unit

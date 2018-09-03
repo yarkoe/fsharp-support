@@ -51,6 +51,17 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Fields 04 - Readonly``() = x.DoNamedTest()
     [<Test>] member x.``Fields 05 - Const``() = x.DoNamedTest()
 
+    [<Test>] member x.``Methods 01 - Void return``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 02 - Overloads``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 03 - Virtual``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 04 - Virtual, overloads``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 05 - Virtual, hiding base``() = x.DoNamedTest()
+
+    [<Test>] member x.``Parameters 01 - Other class param``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 03 - Array param type``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 04 - Params array``() = x.DoNamedTest()
+
     override x.DoTest(project: IProject, secondProject: IProject) =
         let shouldHighlight (highlighting: IHighlighting) =
             highlighting :? FSharpErrorHighlightingBase
