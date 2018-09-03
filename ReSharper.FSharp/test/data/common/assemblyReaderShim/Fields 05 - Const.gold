@@ -1,0 +1,15 @@
+﻿module Module
+
+let [<Literal>] stringLiteral = Foo.String
+let [<Literal>] intLiteral = Foo.Int
+let [<Literal>] boolLiteral = Foo.Bool
+let [<Literal>] doubleLiteral = Foo.Double
+
+let [<Literal>] errorLiteral1 = |||Foo.NoConst|(0)|(1)|(2)
+let [<Literal>] errorLiteral2 = ||Foo.StaticNoConst|(3)|(4)
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: Field 'NoConst' is not static
+(1): ReSharper Underlined Error Highlighting: This is not a valid constant expression
+(2): ReSharper Underlined Error Highlighting: This is not a valid constant expression or custom attribute value
+(3): ReSharper Underlined Error Highlighting: This is not a valid constant expression
+(4): ReSharper Underlined Error Highlighting: This is not a valid constant expression or custom attribute value

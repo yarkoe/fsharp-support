@@ -1,0 +1,8 @@
+﻿module Module
+
+typeof<Foo> |> ignore
+
+|Foo|(0)() |> ignore
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: No constructors are available for the type 'Foo'

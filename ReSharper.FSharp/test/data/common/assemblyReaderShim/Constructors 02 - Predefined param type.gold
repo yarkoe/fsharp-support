@@ -1,0 +1,21 @@
+﻿module Module
+
+Foo("") |> ignore
+
+Foo|()|(0) |> ignore
+Foo(|1|(1)) |> ignore
+Foo(|1.0|(2)) |> ignore
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: This expression was expected to have type
+    'string'    
+but here has type
+    'unit'    
+(1): ReSharper Underlined Error Highlighting: This expression was expected to have type
+    'string'    
+but here has type
+    'int'    
+(2): ReSharper Underlined Error Highlighting: This expression was expected to have type
+    'string'    
+but here has type
+    'float'    

@@ -1,0 +1,9 @@
+﻿module Module
+
+let (f: int) = Foo.IntField
+let (i: Foo) = Foo.FooField
+
+let errorField = |Foo.InstanceField|(0)
+Foo().InstanceField |> ignore
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: Field 'InstanceField' is not static

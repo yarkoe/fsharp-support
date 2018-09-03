@@ -31,6 +31,25 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Types 01 - Global namespace``() = x.DoNamedTest()
     [<Test>] member x.``Types 02 - Namespace``() = x.DoNamedTest()
     [<Test>] member x.``Types 03 - Enum``() = x.DoNamedTest()
+    [<Test>] member x.``Types 04 - Struct``() = x.DoNamedTest()
+    [<Test>] member x.``Types 05 - Interface``() = x.DoNamedTest()
+    [<Test>] member x.``Types 06 - Nested``() = x.DoNamedTest()
+    [<Test>] member x.``Types 07 - Nested, namespace``() = x.DoNamedTest()
+    [<Test>] member x.``Types 08 - Generic``() = x.DoNamedTest()
+    [<Test>] member x.``Types 09 - Generic nested``() = x.DoNamedTest()
+    [<Test>] member x.``Types 10 - Abstract``() = x.DoNamedTest()
+    [<Test>] member x.``Types 11 - Sealed``() = x.DoNamedTest()
+    [<Test>] member x.``Types 12 - Static``() = x.DoNamedTest()
+
+    [<Test>] member x.``Constructors 01 - Default``() = x.DoNamedTest()
+    [<Test>] member x.``Constructors 02 - Predefined param type``() = x.DoNamedTest()
+    [<Test>] member x.``Constructors 03 - Overloads``() = x.DoNamedTest()
+
+    [<Test>] member x.``Fields 01 - Simple Field``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 02 - Self type``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 03 - Static``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 04 - Readonly``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 05 - Const``() = x.DoNamedTest()
 
     override x.DoTest(project: IProject, secondProject: IProject) =
         let shouldHighlight (highlighting: IHighlighting) =
