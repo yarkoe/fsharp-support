@@ -56,6 +56,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Methods 03 - Virtual``() = x.DoNamedTest()
     [<Test>] member x.``Methods 04 - Virtual, overloads``() = x.DoNamedTest()
     [<Test>] member x.``Methods 05 - Virtual, hiding base``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 06 - Extension``() = x.DoNamedTest()
 
     [<Test>] member x.``Parameters 01 - Other class param``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()

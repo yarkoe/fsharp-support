@@ -112,21 +112,27 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         ILMethodRef.Create(typeRef, callingConv, name, typeParamsCount, paramTypes, returnType)
 
 
-    let paramArrayAttribute: ILAttribute =
+    let emptyAttributeBlob = [| 1uy; 0uy; 0uy; 0uy |]
+
+    let mkDefaultCtorAttribute (attrType: IClrTypeName): ILAttribute =
         use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
-        let paramArrayType = TypeFactory.CreateTypeByCLRName(PredefinedType.PARAM_ARRAY_ATTRIBUTE_CLASS, psiModule)
-        match paramArrayType.GetTypeElement() with
+        let attrType = TypeFactory.CreateTypeByCLRName(attrType, psiModule)
+        match attrType.GetTypeElement() with
         | null -> failwithf "getting param array type element in %O" psiModule // todo: safer handling
         | typeElement ->
 
-        let paramArrayType = mkType paramArrayType
-        let ctor = typeElement.Constructors.First()
-        let methodRef = mkMethodRef ctor
+        let attrType = mkType attrType
+        let ctor = typeElement.Constructors.First(fun ctor -> ctor.IsParameterless) // todo: safer handling
+        let ctorMethodRef = mkMethodRef ctor
 
-        let methodSpec = ILMethodSpec.Create(paramArrayType, methodRef, [])
+        let methodSpec = ILMethodSpec.Create(attrType, ctorMethodRef, [])
         { Method = methodSpec
-          Data = EmptyArray.Instance
+          Data = emptyAttributeBlob
           Elements = [] }
+
+    let paramArrayAttribute = mkDefaultCtorAttribute PredefinedType.PARAM_ARRAY_ATTRIBUTE_CLASS
+    let extensionAttribute = mkDefaultCtorAttribute PredefinedType.EXTENSION_ATTRIBUTE_CLASS
+
 
     let mkParam (fromModule: IPsiModule) (param: IParameter): ILParameter =
         let name = param.ShortName
@@ -184,7 +190,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
     let mkMethod (fromModule: IPsiModule) (method: IFunction): ILMethodDef =
         let name = method.ShortName
-        let attributes = mkMethodAttributes method
+        let methodAtts = mkMethodAttributes method
         let callingConv = mkCallingConv method
         let parameters = mkParams method
         let ret = mkType method.ReturnType |> mkILReturn
@@ -197,15 +203,20 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                 |> List.ofSeq
             | _ -> []
 
+        let attrs =
+            match method with
+            | :? IMethod as method when method.IsExtensionMethod -> [extensionAttribute]
+            | _ -> []
+            |> mkILCustomAttrs
+
         let implAttributes = MethodImplAttributes.Managed
         let body = methodBodyUnavailable
         let securityDecls = emptyILSecurityDecls
         let isEntryPoint = false
-        let customAttrs = emptyILCustomAttrs
 
         ILMethodDef
-            (name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams,
-             securityDecls, customAttrs)
+            (name, methodAtts, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams,
+             securityDecls, attrs)
 
 
     let mkField (fromModule: IPsiModule) (field: IField): ILFieldDef =
@@ -316,7 +327,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             |> List.map (mkProperty)
             |> mkILProperties
 
-        let attributes = mkTypeAttributes typeElement
+        let typeAttributes = mkTypeAttributes typeElement
 
         let implements = []
         let genericParams =
@@ -324,9 +335,13 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             |> List.ofSeq
             |> List.map (mkGenericParameterDef psiModule)
 
+        let attributes =
+            if not (typeElement.Methods |> Seq.exists (fun m -> m.IsExtensionMethod)) then [] else [extensionAttribute]
+            |> mkILCustomAttrs
+
         ILTypeDef
-            (name, attributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
-             fields, emptyILMethodImpls, emptyILEvents, properties, emptyILSecurityDecls, emptyILCustomAttrs)
+            (name, typeAttributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
+             fields, emptyILMethodImpls, emptyILEvents, properties, emptyILSecurityDecls, attributes)
 
 
     member x.GetTypeDef(clrTypeName: IClrTypeName) =
