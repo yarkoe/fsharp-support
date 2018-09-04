@@ -1,0 +1,22 @@
+﻿module Module
+
+let f = Foo()
+
+let (i1: int) = f.ReadProperty
+|f.ReadProperty|(0) <- 123
+
+let (i2: int) = |f.WriteProperty|(1)
+f.WriteProperty <- 123
+
+
+let (i3: int) = Foo.StaticReadProperty
+|Foo.StaticReadProperty|(2) <- 123
+
+let (i4: int) = |Foo.StaticWriteProperty|(3)
+Foo.StaticWriteProperty <- 123
+
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: Property 'ReadProperty' cannot be set
+(1): ReSharper Underlined Error Highlighting: Property 'WriteProperty' is not readable
+(2): ReSharper Underlined Error Highlighting: Property 'StaticReadProperty' cannot be set
+(3): ReSharper Underlined Error Highlighting: Property 'StaticWriteProperty' is not readable

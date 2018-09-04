@@ -61,6 +61,11 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 03 - Array param type``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 04 - Params array``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 05 - Optional param``() = x.DoNamedTest()
+
+    // todo: indexers
+    [<Test>] member x.``Properties 01 - Simple``() = x.DoNamedTest()
+    [<Test>] member x.``Properties 02 - Getter, setter only``() = x.DoNamedTest()
 
     override x.DoTest(project: IProject, secondProject: IProject) =
         let shouldHighlight (highlighting: IHighlighting) =

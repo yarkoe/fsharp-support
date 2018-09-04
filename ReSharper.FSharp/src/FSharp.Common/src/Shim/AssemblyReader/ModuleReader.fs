@@ -26,7 +26,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
     let mutable cachedModuleDef: ILModuleDef option = None
 
-    let rec mkType (fromModule: IPsiModule) (typ: IType): ILType =
+    let rec mkType (typ: IType): ILType =
         if typ.IsVoid() then ILType.Void else
 
         match typ with
@@ -34,7 +34,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             match dt.Resolve() with
             | :? EmptyResolveResult ->
                 // todo: add per-module singletons for predefines types
-                mkType fromModule (fromModule.GetPredefinedType().Object)
+                mkType (psiModule.GetPredefinedType().Object)
 
             | resolveResult ->
 
@@ -51,10 +51,10 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
             // todo: value types, etc
             | :? ITypeElement as typeElement ->
-                let typeRef = cache.GetTypeRef(fromModule, typeElement)
+                let typeRef = cache.GetTypeRef(psiModule, typeElement)
                 let typeArgs =
                     resolveResult.Substitution.Domain
-                    |> Seq.map (fun typeParameter -> mkType fromModule resolveResult.Substitution.[typeParameter])
+                    |> Seq.map (fun typeParameter -> mkType resolveResult.Substitution.[typeParameter])
                     |> List.ofSeq
                 let typeSpec = ILTypeSpec.Create(typeRef, typeArgs)
                 ILType.Boxed typeSpec // todo: intern
@@ -62,12 +62,12 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             | _ -> failwithf "mkType: resolved element: %O" typ
 
         | :? IArrayType as arrayType ->
-            let elementType = mkType fromModule arrayType.ElementType
+            let elementType = mkType arrayType.ElementType
             let shape = ILArrayShape.FromRank(arrayType.Rank) // todo: add tests for different dimensions
             ILType.Array (shape, elementType)
 
         | :? IPointerType as pointerType ->
-            let elementType = mkType fromModule pointerType.ElementType
+            let elementType = mkType pointerType.ElementType
             ILType.Ptr elementType // todo: intern
 
         | _ -> failwithf "mkType: type: %O" typ
@@ -80,19 +80,67 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                 let enumType = enum.GetUnderlyingType()
                 if not enumType.IsUnknown then enumType else
                 psiModule.GetPredefinedType().Int :> _
-            mkType psiModule enumType
+            mkType enumType
         let attributes = FieldAttributes.Public ||| FieldAttributes.SpecialName ||| FieldAttributes.RTSpecialName
         ILFieldDef(name, fieldType, attributes, None, None, None, None, emptyILCustomAttrs)
 
 
+    let mkMethodRef (method: IFunction): ILMethodRef =
+        let typeRef =
+            let typeElement =
+                match method.GetContainingType() with
+                | null -> psiModule.GetPredefinedType().Object.GetTypeElement()
+                | typeElement -> typeElement
+
+            cache.GetTypeRef(psiModule, typeElement)
+        
+        let callingConv = mkCallingConv method
+        let name = method.ShortName
+
+        let typeParamsCount =
+            match method with
+            | :? IMethod as method -> method.TypeParameters.Count
+            | _ -> 0
+
+        let paramTypes =
+            method.Parameters
+            |> List.ofSeq
+            |> List.map (fun param -> mkType param.Type)
+        
+        let returnType = mkType method.ReturnType
+        
+        ILMethodRef.Create(typeRef, callingConv, name, typeParamsCount, paramTypes, returnType)
+
+
+    let paramArrayAttribute: ILAttribute =
+        use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+        let paramArrayType = TypeFactory.CreateTypeByCLRName(PredefinedType.PARAM_ARRAY_ATTRIBUTE_CLASS, psiModule)
+        match paramArrayType.GetTypeElement() with
+        | null -> failwithf "getting param array type element in %O" psiModule // todo: safer handling
+        | typeElement ->
+
+        let paramArrayType = mkType paramArrayType
+        let ctor = typeElement.Constructors.First()
+        let methodRef = mkMethodRef ctor
+
+        let methodSpec = ILMethodSpec.Create(paramArrayType, methodRef, [])
+        { Method = methodSpec
+          Data = EmptyArray.Instance
+          Elements = [] }
+
     let mkParam (fromModule: IPsiModule) (param: IParameter): ILParameter =
         let name = param.ShortName
-        let paramType = mkType fromModule param.Type
+        let paramType = mkType param.Type
 
         let defaultValue =
             let defaultValue = param.GetDefaultValue()
             if defaultValue.IsBadValue then None else
             cache.GetLiteralValue(defaultValue.ConstantValue, defaultValue.DefaultTypeValue) // todo: add test
+
+        let attrs =
+            let attrs: ILAttribute list = []
+            if param.IsParameterArray then paramArrayAttribute :: attrs else
+            attrs
 
         { Name = Some name // todo: intern?
           Type = paramType
@@ -101,7 +149,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
           IsIn = param.Kind.Equals(ParameterKind.INPUT) // todo: add test
           IsOut = param.Kind.Equals(ParameterKind.OUTPUT) // todo: add test
           IsOptional = param.IsOptional
-          CustomAttrsStored = storeILCustomAttrs emptyILCustomAttrs // todo
+          CustomAttrsStored = attrs |> mkILCustomAttrs |> storeILCustomAttrs
           MetadataIndex = NoMetadataIdx }
 
     let mkParams (method: IFunction): ILParameter list =
@@ -120,7 +168,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let typeConstraints =
             typeParameter.TypeConstraints
             |> List.ofSeq
-            |> List.map (mkType fromModule)
+            |> List.map mkType
 
         let attributes = storeILCustomAttrs emptyILCustomAttrs // todo
 
@@ -139,7 +187,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let attributes = mkMethodAttributes method
         let callingConv = mkCallingConv method
         let parameters = mkParams method
-        let ret = mkType fromModule method.ReturnType |> mkILReturn
+        let ret = mkType method.ReturnType |> mkILReturn
 
         let genericParams =
             match method with
@@ -164,7 +212,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let name = field.ShortName
         let attributes = mkFieldAttributes field
 
-        let fieldType = mkType fromModule field.Type
+        let fieldType = mkType field.Type
         let data = None
         let offset = None
 
@@ -179,6 +227,26 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let customAttrs = mkILCustomAttrs []
 
         ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs)
+
+    let mkProperty (property: IProperty): ILPropertyDef =
+        let name = property.ShortName
+        let attrs = enum 0 // todo
+        let callConv = mkCallingThisConv property
+        let propertyType = mkType property.Type
+        let init = None // todo
+        let args = []
+
+        let setter =
+            match property.Setter with
+            | null -> None
+            | setter -> Some (mkMethodRef setter)
+
+        let getter =
+            match property.Getter with
+            | null -> None
+            | getter -> Some (mkMethodRef getter)
+
+        ILPropertyDef(name, attrs, setter, getter, callConv, propertyType, init, args, emptyILCustomAttrs)
 
 
     let mkTypeDef (typeElement: ITypeElement) (clrTypeName: IClrTypeName) (moduleReader: ModuleReader): ILTypeDef = // todo: move reader out
@@ -195,8 +263,8 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             match typeElement with
             | :? IClass as c ->
                 match c.GetBaseClassType() with
-                | null -> Some (mkType psiModule (psiModule.GetPredefinedType().Object))
-                | baseType -> Some (mkType psiModule baseType)
+                | null -> Some (mkType (psiModule.GetPredefinedType().Object))
+                | baseType -> Some (mkType baseType)
 
             | :? IInterface -> None
 
@@ -207,8 +275,8 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                     |> Seq.map (fun t -> t.GetTypeElement())
 
                 match superTypes.WhereNotNull().OfType<IClass>().FirstOrDefault() with
-                | null -> Some (mkType psiModule (psiModule.GetPredefinedType().Object))
-                | baseType -> Some (mkType psiModule (TypeFactory.CreateType(baseType)))
+                | null -> Some (mkType (psiModule.GetPredefinedType().Object))
+                | baseType -> Some (mkType (TypeFactory.CreateType(baseType)))
 
         let methods =
             typeElement.GetMembers().OfType<IFunction>()
@@ -242,6 +310,12 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             | _ -> fields
             |> mkILFields
 
+        let properties =
+            typeElement.Properties
+            |> List.ofSeq
+            |> List.map (mkProperty)
+            |> mkILProperties
+
         let attributes = mkTypeAttributes typeElement
 
         let implements = []
@@ -252,7 +326,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         ILTypeDef
             (name, attributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
-             fields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls, emptyILCustomAttrs)
+             fields, emptyILMethodImpls, emptyILEvents, properties, emptyILSecurityDecls, emptyILCustomAttrs)
 
 
     member x.GetTypeDef(clrTypeName: IClrTypeName) =
@@ -433,6 +507,7 @@ type ModuleReaderCache(lifetime, changeManager) =
             | _ -> None
         | _ -> None
 
+    // substitutions?
     member x.GetTypeRef(fromModule: IPsiModule, typeElement: ITypeElement) =
         let clrTypeName = typeElement.GetClrName()
         let targetModule = typeElement.Module
@@ -612,6 +687,8 @@ let mkTypeAccessRights (typeElement: ITypeElement): TypeAttributes =
 let mkTypeAttributes (typeElement: ITypeElement): TypeAttributes =
     // These attributes are ignored by FCS when reading types: BeforeFieldInit.
 
+    // todo: ansi, sequential
+
     let kind =
         match typeElement with
         | :? IClass as c ->
@@ -619,9 +696,10 @@ let mkTypeAttributes (typeElement: ITypeElement): TypeAttributes =
             (if c.IsSealed then TypeAttributes.Sealed else enum 0)
 
         | :? IInterface -> TypeAttributes.Interface
-        | :? IEnum -> TypeAttributes.Sealed
 
-        // todo: structs
+        | :? IEnum
+        | :? IStruct -> TypeAttributes.Sealed
+
         // todo: delegates
         | _ -> enum 0
 
@@ -637,6 +715,8 @@ let instanceCallingConv = Callconv (ILThisConvention.Instance, ILArgConvention.D
 let mkCallingConv (func: IFunction): ILCallingConv =
     if func.IsStatic then staticCallingConv else instanceCallingConv
 
+let mkCallingThisConv (func: IModifiersOwner): ILThisConvention =
+    if func.IsStatic then ILThisConvention.Static else ILThisConvention.Instance
 
 let voidReturn = mkILReturn ILType.Void
 let methodBodyUnavailable = mkMethBodyAux MethodBody.NotAvailable
