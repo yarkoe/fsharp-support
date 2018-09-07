@@ -733,7 +733,8 @@ let mkTypeAttributes (typeElement: ITypeElement): TypeAttributes =
         | :? IInterface -> TypeAttributes.Interface
 
         | :? IEnum
-        | :? IStruct -> TypeAttributes.Sealed
+        | :? IStruct
+        | :? IDelegate -> TypeAttributes.Sealed
 
         | _ -> enum 0
 
