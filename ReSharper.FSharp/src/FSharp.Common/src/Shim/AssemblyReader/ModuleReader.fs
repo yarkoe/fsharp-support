@@ -15,6 +15,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Resolve
+open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 open JetBrains.Util.DataStructures
@@ -40,9 +41,12 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
             match resolveResult.DeclaredElement with
             | :? ITypeParameter as typeParameter ->
-                // todo: is it suitable for methods type parameters?
+                match typeParameter.Owner with
+                | null -> mkType (psiModule.GetPredefinedType().Object)
+                | owner ->
+
                 let mutable index = typeParameter.Index
-                let mutable parent = typeParameter.OwnerType.GetContainingType()
+                let mutable parent = typeParameter.Owner.GetContainingType()
                 while isNotNull parent do
                     index <- index + parent.TypeParameters.Count
                     parent <- parent.GetContainingType()
@@ -349,7 +353,12 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         let typeAttributes = mkTypeAttributes typeElement
 
-        let implements = []
+        let implements =
+            typeElement.GetSuperTypesWithoutCircularDependent()
+            |> List.ofSeq
+            |> List.filter (fun t -> let typeElement = t.GetTypeElement() in typeElement :? IInterface)
+            |> List.map mkType
+
         let genericParams =
             typeElement.TypeParameters
             |> List.ofSeq

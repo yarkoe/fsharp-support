@@ -40,6 +40,9 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Types 10 - Abstract``() = x.DoNamedTest()
     [<Test>] member x.``Types 11 - Sealed``() = x.DoNamedTest()
     [<Test>] member x.``Types 12 - Static``() = x.DoNamedTest()
+    [<Test>] member x.``Types 13 - Delegate``() = x.DoNamedTest()
+    [<Test>] member x.``Types 14 - Implements interfaces``() = x.DoNamedTest()
+    [<Test>] member x.``Types 15 - Implements interfaces, generic``() = x.DoNamedTest()
 
     [<Test>] member x.``Constructors 01 - Default``() = x.DoNamedTest()
     [<Test>] member x.``Constructors 02 - Predefined param type``() = x.DoNamedTest()
@@ -59,6 +62,8 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Methods 04 - Virtual, overloads``() = x.DoNamedTest()
     [<Test>] member x.``Methods 05 - Virtual, hiding base``() = x.DoNamedTest()
     [<Test>] member x.``Methods 06 - Extension``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 07 - Protected``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 08 - Generic``() = x.DoNamedTest()
 
     [<Test>] member x.``Parameters 01 - Other class param``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()

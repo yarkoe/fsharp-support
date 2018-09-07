@@ -1,0 +1,17 @@
+﻿module Module
+
+open System
+
+typeof<Foo> |> ignore
+
+let f = |Foo()|(0)
+let d = f :> IDisposable
+let c = |f :> IComparable|(1)
+
+---------------------------------------------------------
+(0): ReSharper Warning: It is recommended that objects supporting the IDisposable interface are created using the syntax 'new Type(args)', rather than 'Type(args)' or 'Type' as a function value representing the constructor, to indicate that resources may be owned by the generated value
+(1): ReSharper Underlined Error Highlighting: Type constraint mismatch. The type 
+    'Foo'    
+is not compatible with type
+    'IComparable'    
+
