@@ -1,5 +1,8 @@
 public enum Foo
 {
-    Field1,
-    Field2
+    Field
+}
+
+public class Class
+{
 }

@@ -134,6 +134,23 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
     let extensionAttribute = mkDefaultCtorAttribute PredefinedType.EXTENSION_ATTRIBUTE_CLASS
 
 
+    let mkAttribute (attrInstance: IAttributeInstance): ILAttribute =
+        let attrCtor = attrInstance.Constructor
+        let attrType = attrInstance.GetAttributeType() |> mkType
+
+        let ctorMethodRef = mkMethodRef attrCtor
+        let ctorMethodSpec = ILMethodSpec.Create(attrType, ctorMethodRef, [])
+
+        let data = List()
+        data.AddRange(blobProlog)
+
+        data.Add(byte attrInstance.NamedParameterCount)
+
+        { Method = ctorMethodSpec
+          Data = data.ToArray()
+          Elements = [] }
+
+
     let mkParam (fromModule: IPsiModule) (param: IParameter): ILParameter =
         let name = param.ShortName
         let paramType = mkType param.Type
@@ -615,7 +632,7 @@ let mkDummyTypeDef name: ILTypeDef =
          emptyILFields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls, emptyILCustomAttrs)
 
 
-let typeParameterCountStrings = [| "`1"; "`2"; "`3"; "`4"; "`5"; "`6"; "`7" |]
+let typeParameterCountStrings = [| "`0"; "`1"; "`2"; "`3"; "`4"; "`5"; "`6"; "`7" |]
 let typeParameterCountStringsCount = typeParameterCountStrings.Length
 
 let mkTypeName (name: string) (paramsCount: int): string =
@@ -715,7 +732,6 @@ let mkTypeAttributes (typeElement: ITypeElement): TypeAttributes =
         | :? IEnum
         | :? IStruct -> TypeAttributes.Sealed
 
-        // todo: delegates
         | _ -> enum 0
 
     // todo: add tests

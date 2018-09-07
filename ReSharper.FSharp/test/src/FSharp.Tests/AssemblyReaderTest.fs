@@ -50,6 +50,8 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Fields 03 - Static``() = x.DoNamedTest()
     [<Test>] member x.``Fields 04 - Readonly``() = x.DoNamedTest()
     [<Test>] member x.``Fields 05 - Const``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 06 - Generic type``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 07 - Generic self type``() = x.DoNamedTest()
 
     [<Test>] member x.``Methods 01 - Void return``() = x.DoNamedTest()
     [<Test>] member x.``Methods 02 - Overloads``() = x.DoNamedTest()
@@ -63,6 +65,12 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Parameters 03 - Array param type``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 04 - Params array``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 05 - Optional param``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 06 - Named arg``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 07 - Type in same namespace``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 08 - Type in other namespace``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 09 - Nested type``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 10 - Nested type in same namespace``() = x.DoNamedTest()
+    [<Test>] member x.``Parameters 11 - Nested type in other namespace``() = x.DoNamedTest()
 
     // todo: indexers
     [<Test>] member x.``Properties 01 - Simple``() = x.DoNamedTest()
