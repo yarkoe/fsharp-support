@@ -72,9 +72,9 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Parameters 10 - Nested type in same namespace``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 11 - Nested type in other namespace``() = x.DoNamedTest()
 
-    // todo: indexers
     [<Test>] member x.``Properties 01 - Simple``() = x.DoNamedTest()
     [<Test>] member x.``Properties 02 - Getter, setter only``() = x.DoNamedTest()
+    [<Test>] member x.``Properties 03 - Indexer``() = x.DoNamedTest()
 
     override x.DoTest(project: IProject, secondProject: IProject) =
         let shouldHighlight (highlighting: IHighlighting) =

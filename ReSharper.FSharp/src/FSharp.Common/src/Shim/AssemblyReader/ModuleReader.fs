@@ -262,7 +262,10 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let callConv = mkCallingThisConv property
         let propertyType = mkType property.Type
         let init = None // todo
-        let args = []
+        let args =
+            property.Parameters
+            |> List.ofSeq
+            |> List.map (fun p -> mkType p.Type)
 
         let setter =
             match property.Setter with
