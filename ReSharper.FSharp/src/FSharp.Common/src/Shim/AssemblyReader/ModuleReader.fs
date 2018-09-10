@@ -360,8 +360,9 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             |> List.map mkType
 
         let genericParams =
-            typeElement.TypeParameters
+            typeElement.GetAllTypeParameters()
             |> List.ofSeq
+            |> List.rev
             |> List.map (mkGenericParameterDef psiModule)
 
         let attributes =

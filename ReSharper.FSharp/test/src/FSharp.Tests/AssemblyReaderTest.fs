@@ -64,6 +64,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Methods 06 - Extension``() = x.DoNamedTest()
     [<Test>] member x.``Methods 07 - Protected``() = x.DoNamedTest()
     [<Test>] member x.``Methods 08 - Generic``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 09 - Nested generic``() = x.DoNamedTest()
 
     [<Test>] member x.``Parameters 01 - Other class param``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()
