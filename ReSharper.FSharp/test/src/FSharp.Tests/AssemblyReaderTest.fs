@@ -55,6 +55,8 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Fields 05 - Const``() = x.DoNamedTest()
     [<Test>] member x.``Fields 06 - Generic type``() = x.DoNamedTest()
     [<Test>] member x.``Fields 07 - Generic self type``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 08 - Array, multidimensional tuple``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 09 - Array, multidimensional``() = x.DoNamedTest()
 
     [<Test>] member x.``Methods 01 - Void return``() = x.DoNamedTest()
     [<Test>] member x.``Methods 02 - Overloads``() = x.DoNamedTest()

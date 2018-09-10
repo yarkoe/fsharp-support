@@ -67,7 +67,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         | :? IArrayType as arrayType ->
             let elementType = mkType arrayType.ElementType
-            let shape = ILArrayShape.FromRank(arrayType.Rank) // todo: add tests for different dimensions
+            let shape = ILArrayShape.FromRank(arrayType.Rank)
             ILType.Array (shape, elementType)
 
         | :? IPointerType as pointerType ->
