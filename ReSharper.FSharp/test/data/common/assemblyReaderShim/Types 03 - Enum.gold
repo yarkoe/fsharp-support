@@ -7,5 +7,11 @@ let (f: Foo) = enum 0
 System.Nullable<Foo>() |> ignore
 |System.Nullable<Class>|(0)() |> ignore
 
+type T1() =
+    inherit Class()
+
+type T2() =
+    |inherit Foo()|(1)
 ---------------------------------------------------------
 (0): ReSharper Underlined Error Highlighting: A generic construct requires that the type 'Class' is a CLI or F# struct type
+(1): ReSharper Underlined Error Highlighting: Cannot inherit a sealed type

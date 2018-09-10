@@ -9,13 +9,16 @@ open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.FeaturesTestFramework.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader
+open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
 open JetBrains.ReSharper.Plugins.FSharp.Tests
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.Util
+open JetBrains.Util.DataStructures
 open NUnit.Framework
+open Microsoft.FSharp.Compiler.AbstractIL.IL
 
 [<FSharpTest>]
 type AssemblyReaderTest() =
@@ -57,6 +60,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Fields 07 - Generic self type``() = x.DoNamedTest()
     [<Test>] member x.``Fields 08 - Array, multidimensional tuple``() = x.DoNamedTest()
     [<Test>] member x.``Fields 09 - Array, multidimensional``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 10 - Tuple``() = x.DoNamedTest()
 
     [<Test>] member x.``Methods 01 - Void return``() = x.DoNamedTest()
     [<Test>] member x.``Methods 02 - Overloads``() = x.DoNamedTest()
@@ -128,3 +132,26 @@ type ProjectsByOutputStub() =
         member x.GetProjectPsiModuleByOutputAssembly(path) =
             if path <> x.ProjectOutput then null else
             x.Project.GetPsiModules().First()
+
+
+
+type InterningTest() =
+    [<Test>]
+    member x.``Intern option test``() =
+        let interner = DataIntern()
+        let a = interner.Intern(Some true)
+        let b = interner.Intern(Some true)
+        let c = interner.Intern(Some false)
+
+        Assert.NotNull(a == b, "a == b")
+        Assert.NotNull(a != c, "a != c")
+
+    [<Test>]
+    member x.``Intern Fcs pubic key test``() =
+        let interner = DataIntern()
+        let a = interner.Intern(Some (PublicKey.PublicKey [|1uy; 2uy; 3uy|]))
+        let b = interner.Intern(Some (PublicKey.PublicKey [|1uy; 2uy; 3uy|]))
+        let c = interner.Intern(Some (PublicKey.PublicKey [|1uy; 2uy|]))
+
+        Assert.NotNull(a == b, "a == b")
+        Assert.NotNull(a != c, "a != c")

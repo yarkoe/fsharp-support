@@ -458,7 +458,6 @@ type ModuleReaderCache(lifetime, changeManager) =
     /// References to types in a different assemblies (currently keyed by primary psi module).
     let assemblyTypeRefs = ConcurrentDictionary<IPsiModule, ConcurrentDictionary<IClrTypeName, ILTypeRef>>()
 
-    // todo: add interning test (e.g. for literal values)
     let cultures = DataIntern()
     let publicKeys = DataIntern()
     let literalValues = DataIntern()
