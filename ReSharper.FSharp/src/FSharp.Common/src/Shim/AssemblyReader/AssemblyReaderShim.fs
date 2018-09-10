@@ -1,5 +1,6 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader
 
+open System
 open System.Collections.Concurrent
 open JetBrains.Application.changes
 open JetBrains.DataFlow
@@ -9,6 +10,8 @@ open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader.ModuleReader
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.FileSystem
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
+open JetBrains.ReSharper.Psi.Caches
+open JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Resources.Shell
 
@@ -27,7 +30,9 @@ type AssemblyReaderShim
          projectsByOutput: IProjectsByOutput, assemblyTimestampCache: AssemblyTimestampCache) =
     inherit AssemblyReaderShimBase(lifetime, changeManager)
 
-    let assemblyReaders = ConcurrentDictionary<FileSystemPath, ReferencedAssembly>()
+    // todo: remove on project/psi model changes
+    let assemblyReadersByPath = ConcurrentDictionary<FileSystemPath, ReferencedAssembly>()
+    let assemblyReadersByModule = ConcurrentDictionary<IPsiModule, ReferencedAssembly>()
 
     let isAssembly (path: FileSystemPath) =
         let extension = path.ExtensionNoDot
@@ -41,12 +46,18 @@ type AssemblyReaderShim
 
     let getReader path =
         let mutable reader = Unchecked.defaultof<_>
-        match assemblyReaders.TryGetValue(path, &reader) with
+        match assemblyReadersByPath.TryGetValue(path, &reader) with
         | true -> reader
         | _ ->
 
         let reader = createReader path
-//        assemblyReaders.[path] <- reader // todo: fix races in tests when uncommenting
+        assemblyReadersByPath.[path] <- reader
+
+        match reader with
+        | ProjectOutput moduleReader ->
+            assemblyReadersByModule.[moduleReader.Module] <- reader
+        | _ -> ()
+
         reader
 
     override x.GetLastWriteTime(path) =
@@ -67,6 +78,12 @@ type AssemblyReaderShim
         match getReader path with
         | ProjectOutput reader -> reader :> _
         | _ -> base.GetModuleReader(path, readerOptions)
+
+    member x.GetModuleReader(psiModule: IPsiModule): ReferencedAssembly =
+        let mutable reader = Unchecked.defaultof<_>
+        match assemblyReadersByModule.TryGetValue(psiModule, &reader) with
+        | true -> reader
+        | _ -> Ignored
 
 
 /// Extracted interface for overriding in tests.
@@ -97,3 +114,21 @@ type ProjectsByOutput(psiModules: IPsiModules) =
                 | null -> false
                 | outputAssemblyInfo -> outputAssemblyInfo.Location = path)
             |> Option.toObj
+
+
+[<SolutionComponent>]
+type SymbolCacheListener(lifetime: Lifetime, symbolCache: ISymbolCache, readerShim: AssemblyReaderShim) =
+    let typePartChanged = Action<_>(fun (typePart: TypePart) ->
+        match readerShim.GetModuleReader(typePart.GetPsiModule()) with
+        | ProjectOutput reader ->
+            let clrTypeName = typePart.TypeElement.GetClrName()
+            reader.InvalidateTypeDef(clrTypeName)
+        | _ -> ())
+
+    do
+        symbolCache.add_OnAfterTypePartAdded(typePartChanged)
+        symbolCache.add_OnBeforeTypePartRemoved(typePartChanged)
+
+        lifetime.AddAction2(fun _ ->
+            symbolCache.remove_OnAfterTypePartAdded(typePartChanged)
+            symbolCache.remove_OnBeforeTypePartRemoved(typePartChanged))

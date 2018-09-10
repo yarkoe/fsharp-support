@@ -17,6 +17,7 @@ open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Resolve
 open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.Resources.Shell
+open JetBrains.Threading
 open JetBrains.Util
 open JetBrains.Util.DataStructures
 open Microsoft.FSharp.Compiler.AbstractIL.IL
@@ -25,7 +26,15 @@ open Microsoft.FSharp.Compiler.AbstractIL.ILBinaryReader
 type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
     let symbolScope = psiModule.GetPsiServices().Symbols.GetSymbolScope(psiModule, false, true)
 
-    let mutable cachedModuleDef: ILModuleDef option = None
+    let locker = JetFastSemiReenterableRWLock()
+
+    let mutable moduleDef: ILModuleDef option = None
+
+    // Initial value is an arbitrary timestamp that is earlier than any file modifications observed by FCS.
+    let mutable timeStamp = DateTime.MinValue
+
+    /// Type definitions imported by FCS.
+    let typeDefs = ConcurrentDictionary<IClrTypeName, ILTypeDef>()
 
     // todo: intern types
     let rec mkType (typ: IType): ILType =
@@ -386,8 +395,17 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             (name, typeAttributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
              fields, emptyILMethodImpls, emptyILEvents, properties, emptyILSecurityDecls, attributes)
 
+    member x.TryGetCachedTypeDef(clrTypeName: IClrTypeName, typeDef: byref<ILTypeDef>) =
+        use lock = locker.UsingReadLock()
+        typeDefs.TryGetValue(clrTypeName, &typeDef)
 
     member x.GetTypeDef(clrTypeName: IClrTypeName) =
+        let mutable typeDef = Unchecked.defaultof<_>
+        match x.TryGetCachedTypeDef(clrTypeName, &typeDef) with
+        | true -> typeDef
+        | _ ->
+
+        use lock = locker.UsingWriteLock()
         use cookie = ReadLockCookie.Create()
         match symbolScope.GetTypeElementByCLRName(clrTypeName) with
         | null ->
@@ -398,23 +416,27 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         // When there are multiple types with given clr name in the module we'll get some first one here.
         // todo: add a test for the case above
         | typeElement ->
-            mkTypeDef typeElement clrTypeName x
+            let typeDef = mkTypeDef typeElement clrTypeName x
+            typeDefs.[clrTypeName] <- typeDef
+            typeDef
 
-    member x.Module = psiModule
-    member x.SymbolScope = symbolScope
+    member x.InvalidateTypeDef(clrTypeName: IClrTypeName) =
+        use lock = locker.UsingWriteLock()
+        typeDefs.TryRemove(clrTypeName) |> ignore
+        moduleDef <- None
+        timeStamp <- DateTime.UtcNow
 
-    // Initial value is an arbitrary timestamp that is earlier than any file modifications observed by FCS.
-    member val TimeStamp =
-        use cookie = ReadLockCookie.Create()
-        psiModule.SourceFiles
-        |> Seq.map (fun sf -> DateTime(sf.GetAggregatedTimestamp()))
-        |> Seq.sort
-        |> Seq.tryLast
-        |> Option.defaultValue DateTime.MinValue
+    member x.Module =
+        use lock = locker.UsingReadLock()
+        psiModule
+
+    member x.TimeStamp =
+        use lock = locker.UsingReadLock()
+        timeStamp
 
     interface ILModuleReader with
         member x.ILModuleDef =
-            match cachedModuleDef with
+            match moduleDef with
             | Some moduleDef -> moduleDef
             | None ->
 
@@ -443,7 +465,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             let flags = 0 // todo
             let exportedTypes = mkILExportedTypes []
 
-            let moduleDef =
+            let newModuleDef =
                 mkILSimpleModule
                     assemblyName moduleName isDll
                     DummyModuleDefValues.subsystemVersion
@@ -452,8 +474,8 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                     None None flags exportedTypes
                     DummyModuleDefValues.metadataVersion
 
-            cachedModuleDef <- Some moduleDef
-            moduleDef
+            moduleDef <- Some newModuleDef
+            newModuleDef
 
         member x.ILAssemblyRefs = []
         member x.Dispose() = ()
