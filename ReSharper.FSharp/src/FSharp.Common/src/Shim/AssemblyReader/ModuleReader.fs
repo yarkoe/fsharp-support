@@ -27,6 +27,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
     let mutable cachedModuleDef: ILModuleDef option = None
 
+    // todo: intern types
     let rec mkType (typ: IType): ILType =
         if typ.IsVoid() then ILType.Void else
 
@@ -53,15 +54,21 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
                 ILType.TypeVar (uint16 index)
 
-            // todo: value types, etc
             | :? ITypeElement as typeElement ->
-                let typeRef = cache.GetTypeRef(psiModule, typeElement)
                 let typeArgs =
                     resolveResult.Substitution.Domain
                     |> Seq.map (fun typeParameter -> mkType resolveResult.Substitution.[typeParameter])
                     |> List.ofSeq
+
+                let typeRef = cache.GetTypeRef(psiModule, typeElement)
                 let typeSpec = ILTypeSpec.Create(typeRef, typeArgs)
-                ILType.Boxed typeSpec // todo: intern
+
+                match typeElement with
+                | :? IEnum
+                | :? IStruct ->
+                    ILType.Value typeSpec
+
+                | _ -> ILType.Boxed typeSpec
 
             | _ -> failwithf "mkType: resolved element: %O" typ
 
@@ -72,7 +79,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         | :? IPointerType as pointerType ->
             let elementType = mkType pointerType.ElementType
-            ILType.Ptr elementType // todo: intern
+            ILType.Ptr elementType
 
         | _ -> failwithf "mkType: type: %O" typ
 
@@ -116,6 +123,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         ILMethodRef.Create(typeRef, callingConv, name, typeParamsCount, paramTypes, returnType)
 
 
+    let blobProlog = [| 1uy; 0uy |]
     let emptyAttributeBlob = [| 1uy; 0uy; 0uy; 0uy |]
 
     let mkDefaultCtorAttribute (attrType: IClrTypeName): ILAttribute =
@@ -214,7 +222,12 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         let methodAtts = mkMethodAttributes method
         let callingConv = mkCallingConv method
         let parameters = mkParams method
-        let ret = mkType method.ReturnType |> mkILReturn
+
+        let ret =
+            let returnType = method.ReturnType
+            if returnType.IsVoid() then voidReturn else
+
+            mkType returnType |> mkILReturn
 
         let genericParams =
             match method with
@@ -426,6 +439,7 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
                 let preTypeDefs = result.ToArray()
                 mkILTypeDefsComputed (fun _ -> preTypeDefs)
 
+            // todo: add internals visible to test
             let flags = 0 // todo
             let exportedTypes = mkILExportedTypes []
 
@@ -462,8 +476,6 @@ type ModuleReaderCache(lifetime, changeManager) =
     let publicKeys = DataIntern()
     let literalValues = DataIntern()
 
-    let neutralCulture = Some ""
-
     let createAssemblyScopeRef (assemblyName: AssemblyNameInfo): ILAssemblyRef =
         let name = assemblyName.Name
         let hash = None // review: assembly hash?
@@ -484,8 +496,7 @@ type ModuleReaderCache(lifetime, changeManager) =
 
         let locale =
             match assemblyName.Culture with
-            | null -> None
-            | "neutral" -> neutralCulture
+            | null | "neutral" -> None
             | culture -> cultures.Intern(Some culture)
 
         ILAssemblyRef.Create(name, hash, publicKey, retargetable, version, locale)
@@ -551,7 +562,6 @@ type ModuleReaderCache(lifetime, changeManager) =
             | _ -> None
         | _ -> None
 
-    // substitutions?
     member x.GetTypeRef(fromModule: IPsiModule, typeElement: ITypeElement) =
         let clrTypeName = typeElement.GetClrName()
         let targetModule = typeElement.Module
@@ -762,8 +772,10 @@ let mkCallingConv (func: IFunction): ILCallingConv =
 let mkCallingThisConv (func: IModifiersOwner): ILThisConvention =
     if func.IsStatic then ILThisConvention.Static else ILThisConvention.Instance
 
+
 let voidReturn = mkILReturn ILType.Void
 let methodBodyUnavailable = mkMethBodyAux MethodBody.NotAvailable
+
 
 module DummyModuleDefValues =
     let subsystemVersion = 4, 0
