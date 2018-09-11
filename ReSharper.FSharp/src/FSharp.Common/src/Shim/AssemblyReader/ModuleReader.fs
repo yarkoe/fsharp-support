@@ -411,7 +411,8 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
         | null ->
             // The type doesn't exist in the module anymore.
             // It should mean the project has changed and FCS will be invalidating this module.
-            mkDummyTypeDef clrTypeName.ShortName
+            let dummyTypeDefProvider = psiModule.GetSolution().GetComponent<IDummyTypeDefProvider>()
+            dummyTypeDefProvider.GetTypeDef(clrTypeName.ShortName)
 
         // When there are multiple types with given clr name in the module we'll get some first one here.
         // todo: add a test for the case above
@@ -659,23 +660,6 @@ type PreTypeDef(clrTypeName: IClrTypeName, reader: ModuleReader) =
             reader.GetTypeDef(clrTypeName)
 
 
-let mkDummyTypeDef name: ILTypeDef =
-    let failOnDummyTypeDefs = true // todo: move to a component, fail in tests only
-
-    if failOnDummyTypeDefs then
-        failwithf "mkDummyTypeDef %O" name
-
-    let attributes = enum 0
-    let implements = []
-    let genericParams = []
-    let extends = None
-    let nestedTypes = emptyILTypeDefs
-
-    ILTypeDef
-        (name, attributes, ILTypeDefLayout.Auto, implements, genericParams, extends, emptyILMethods, nestedTypes,
-         emptyILFields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls, emptyILCustomAttrs)
-
-
 let typeParameterCountStrings = [| "`0"; "`1"; "`2"; "`3"; "`4"; "`5"; "`6"; "`7" |]
 let typeParameterCountStringsCount = typeParameterCountStrings.Length
 
@@ -807,3 +791,24 @@ module DummyModuleDefValues =
     let flags = 0
     let exportedTypes = mkILExportedTypes []
     let metadataVersion = String.Empty
+
+
+type IDummyTypeDefProvider =
+    abstract GetTypeDef: name: string -> ILTypeDef
+
+
+[<SolutionComponent>]
+type DummyTypeDefProvider() =
+    interface IDummyTypeDefProvider with
+        member x.GetTypeDef(name) =
+            let attributes = enum 0
+            let layout = ILTypeDefLayout.Auto
+            let implements = []
+            let genericParams = []
+            let extends = None
+            let nestedTypes = emptyILTypeDefs
+
+            ILTypeDef
+                (name, attributes, layout, implements, genericParams, extends, emptyILMethods, nestedTypes,
+                 emptyILFields, emptyILMethodImpls, emptyILEvents, emptyILProperties, emptyILSecurityDecls,
+                 emptyILCustomAttrs)

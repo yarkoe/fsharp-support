@@ -9,6 +9,7 @@ open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.FeaturesTestFramework.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.Common.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader
+open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader.ModuleReader
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase
@@ -133,6 +134,13 @@ type ProjectsByOutputStub() =
             if path <> x.ProjectOutput then null else
             x.Project.GetPsiModules().First()
 
+
+[<SolutionComponent>]
+type TestDummyTypeDefProvider() =
+    interface IHideImplementation<DummyTypeDefProvider>
+
+    interface IDummyTypeDefProvider with
+        member x.GetTypeDef(name) = failwithf "Getting dummy type def for: %O" name
 
 
 type InterningTest() =
