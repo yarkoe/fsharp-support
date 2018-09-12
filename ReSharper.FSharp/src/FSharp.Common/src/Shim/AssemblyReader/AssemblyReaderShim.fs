@@ -5,6 +5,7 @@ open System.Collections.Concurrent
 open JetBrains.Application.changes
 open JetBrains.DataFlow
 open JetBrains.ProjectModel
+open JetBrains.ProjectModel.Properties
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Plugins.FSharp.Common.Shim.AssemblyReader.ModuleReader
@@ -95,7 +96,12 @@ type IProjectsByOutput =
 type ProjectsByOutput(psiModules: IPsiModules) =
     let isSupported (project: IProject) =
         isNotNull project &&
+
+        // F# cross-project reading is done by FCS.
         project.ProjectProperties.DefaultLanguage != FSharpProjectLanguage.Instance &&
+
+        // We don't have symbol cache populated for C++ projects.
+        project.ProjectProperties.DefaultLanguage != ProjectLanguage.CPP &&
 
         match project.ProjectProperties.ProjectKind with
         | ProjectKind.REGULAR_PROJECT
