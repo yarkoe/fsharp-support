@@ -13,6 +13,8 @@ open JetBrains.ProjectModel.Properties.Managed
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Common.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.Impl.Special
+open JetBrains.ReSharper.Psi.Impl.Types
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Resolve
 open JetBrains.ReSharper.Psi.Util
@@ -282,6 +284,36 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
 
         ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs)
 
+
+    let mkEvent (event: IEvent): ILEventDef =
+        let eventType =
+            let eventType = event.Type
+            if eventType.IsUnknown then None else
+            Some (mkType event.Type)
+
+        let name = event.ShortName
+        let attributes = enum 0 // Not used by FCS.
+
+        let addMethod =
+            let adder = event.Adder
+            if isNotNull adder then adder else ImplicitAccessor(event, AccessorKind.ADDER) :> _
+            |> mkMethodRef
+
+        let removeMethod =
+            let remover = event.Remover
+            if isNotNull remover then remover else ImplicitAccessor(event, AccessorKind.REMOVER) :> _
+            |> mkMethodRef
+
+        let fireMethod =
+            match event.Raiser with
+            | null -> None
+            | adder -> Some (mkMethodRef adder)
+
+        let otherMethods = []
+        let customAttrs = emptyILCustomAttrs
+        ILEventDef(eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, customAttrs)
+
+
     let mkProperty (property: IProperty): ILPropertyDef =
         let name = property.ShortName
         let attrs = enum 0 // todo
@@ -391,9 +423,15 @@ type ModuleReader(psiModule: IPsiModule, cache: ModuleReaderCache) =
             if not (typeElement.Methods |> Seq.exists (fun m -> m.IsExtensionMethod)) then [] else [extensionAttribute]
             |> mkILCustomAttrs
 
+        let events =
+            typeElement.Events
+            |> List.ofSeq
+            |> List.map mkEvent
+            |> mkILEvents
+
         ILTypeDef
             (name, typeAttributes, ILTypeDefLayout.Auto, implements, genericParams, extends, methods, nestedTypes,
-             fields, emptyILMethodImpls, emptyILEvents, properties, emptyILSecurityDecls, attributes)
+             fields, emptyILMethodImpls, events, properties, emptyILSecurityDecls, attributes)
 
     member x.TryGetCachedTypeDef(clrTypeName: IClrTypeName, typeDef: byref<ILTypeDef>) =
         use lock = locker.UsingReadLock()

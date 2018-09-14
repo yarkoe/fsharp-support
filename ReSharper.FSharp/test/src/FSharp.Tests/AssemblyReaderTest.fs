@@ -89,6 +89,10 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Properties 02 - Getter, setter only``() = x.DoNamedTest()
     [<Test>] member x.``Properties 03 - Indexer``() = x.DoNamedTest()
 
+    [<Test>] member x.``Events 01 - Simple``() = x.DoNamedTest()
+    [<Test>] member x.``Events 02 - Explicit accessors``() = x.DoNamedTest()
+    [<Test>] member x.``Events 03 - Missing explicit accessors``() = x.DoNamedTest()
+
     override x.DoTest(project: IProject, secondProject: IProject) =
         let shouldHighlight (highlighting: IHighlighting) =
             highlighting :? FSharpErrorHighlightingBase
