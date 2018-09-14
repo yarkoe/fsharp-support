@@ -62,6 +62,8 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Fields 08 - Array, multidimensional tuple``() = x.DoNamedTest()
     [<Test>] member x.``Fields 09 - Array, multidimensional``() = x.DoNamedTest()
     [<Test>] member x.``Fields 10 - Tuple``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 11 - Unresolved type``() = x.DoNamedTest()
+    [<Test>] member x.``Fields 12 - Unsafe``() = x.DoNamedTest()
 
     [<Test>] member x.``Methods 01 - Void return``() = x.DoNamedTest()
     [<Test>] member x.``Methods 02 - Overloads``() = x.DoNamedTest()
@@ -72,6 +74,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Methods 07 - Protected``() = x.DoNamedTest()
     [<Test>] member x.``Methods 08 - Generic``() = x.DoNamedTest()
     [<Test>] member x.``Methods 09 - Nested generic``() = x.DoNamedTest()
+    [<Test>] member x.``Methods 10 - Explicit implementation``() = x.DoNamedTest()
 
     [<Test>] member x.``Parameters 01 - Other class param``() = x.DoNamedTest()
     [<Test>] member x.``Parameters 02 - Framework type param``() = x.DoNamedTest()

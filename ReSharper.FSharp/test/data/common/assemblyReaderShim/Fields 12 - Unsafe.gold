@@ -1,0 +1,8 @@
+﻿module Module
+
+open FSharp.NativeInterop
+
+let (b: byte) = |NativePtr.read|(0) Foo.Field
+
+---------------------------------------------------------
+(0): ReSharper Warning: Uses of this construct may result in the generation of unverifiable .NET IL code. This warning can be disabled using '--nowarn:9' or '#nowarn "9"'.

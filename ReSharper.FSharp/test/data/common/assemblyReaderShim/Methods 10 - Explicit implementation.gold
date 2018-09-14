@@ -1,0 +1,12 @@
+﻿module Module
+
+open System
+
+let f = new Foo()
+f.|Dispose|(0)()
+
+let d = f :> IDisposable
+d.Dispose()
+
+---------------------------------------------------------
+(0): ReSharper Error Highlighting: The field, constructor or member 'Dispose' is not defined.
