@@ -1,0 +1,18 @@
+﻿module Module
+
+type Bar() =
+    inherit Foo()
+
+    override x.AbstractMethod() = ()
+    override x.|Method|(0)() = ()
+
+let b = Bar()
+b.AbstractMethod()
+b.Method()
+
+let f = |Foo()|(1)
+f.AbstractMethod()
+f.Method()
+---------------------------------------------------------
+(0): ReSharper Underlined Error Highlighting: No abstract or interface member was found that corresponds to this override
+(1): ReSharper Underlined Error Highlighting: Instances of this type cannot be created since it has been marked abstract or not all methods have been given implementations. Consider using an object expression '{ new ... with ... }' instead.

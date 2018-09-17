@@ -766,7 +766,8 @@ let mkMethodAttributes (method: IFunction): MethodAttributes =
     MethodAttributes.HideBySig |||
     (if method.IsStatic then MethodAttributes.Static else enum 0) |||
     (if method.IsSealed then MethodAttributes.Final else enum 0) |||
-    (if method.IsVirtual then MethodAttributes.Virtual else enum 0) |||
+    (if method.IsAbstract then MethodAttributes.Abstract else enum 0) |||
+    (if method.IsVirtual || method.IsAbstract then MethodAttributes.Virtual else enum 0) |||
     (if not (method.GetHiddenMembers().IsEmpty()) then MethodAttributes.NewSlot else enum 0) |||
     (if method :? IConstructor || method :? IAccessor then methodSpecialNameAttrs else enum 0)
 
