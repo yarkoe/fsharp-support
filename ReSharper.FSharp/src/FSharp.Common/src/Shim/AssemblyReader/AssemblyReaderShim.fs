@@ -110,16 +110,13 @@ type ProjectsByOutput(psiModules: IPsiModules) =
 
     interface IProjectsByOutput with
         member x.GetProjectPsiModuleByOutputAssembly(path) =
-            let project = psiModules.GetProjectByOutputAssembly(path)
+            let projectAndtargetFrameworkId = psiModules.GetProjectAndTargetFrameworkIdByOutputAssembly(path)
+            if isNull (box projectAndtargetFrameworkId) then null else
+
+            let project, targetFrameworkId = projectAndtargetFrameworkId 
             if not (isSupported project) then null else
 
-            // review: can there be multiple project psi modules corresponding to a single output path?
-            project.GetPsiModules()
-            |> Seq.tryFind (fun psiModule ->
-                match project.GetOutputAssemblyInfo(psiModule.TargetFrameworkId) with
-                | null -> false
-                | outputAssemblyInfo -> outputAssemblyInfo.Location = path)
-            |> Option.toObj
+            psiModules.GetPrimaryPsiModule(projectAndtargetFrameworkId)
 
 
 [<SolutionComponent>]
