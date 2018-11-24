@@ -878,7 +878,15 @@ type FSharpTypingAssist
                             dots |> List.exists (fun dot -> dotOffset = document.GetStartOffset(dot)) ->
                         Some expr.Range
 
-                    | _ -> defaultTraverse expr }
+                    | _ -> defaultTraverse expr
+
+                member x.VisitType(defaultTraverse, ty) =
+                    match ty with
+                    | SynType.LongIdent (LongIdentWithDots (_, dots))
+                    | SynType.LongIdentApp (_, LongIdentWithDots (_, dots), _, _, _, _, _) when
+                            dots |> List.exists (fun dot -> dotOffset = document.GetStartOffset(dot)) ->
+                        Some ty.Range
+                    | _ -> defaultTraverse ty }
 
         match Traverse(caretCoords.GetPos(), parseTree, visitor) with
         | None -> false

@@ -120,6 +120,8 @@ type FSharpTypingAssistTest() =
     [<Test>] member x.``Enter before dot 06 - Chained members``() = x.DoNamedTest()
     [<Test>] member x.``Enter before dot 07 - Indexer``() = x.DoNamedTest()
     [<Test>] member x.``Enter before dot 08 - Multiline indexer``() = x.DoNamedTest()
+    [<Test>] member x.``Enter before dot 09 - In type``() = x.DoNamedTest()
+    [<Test>] member x.``Enter before dot 10 - In type app``() = x.DoNamedTest()
 
     [<Test>] member x.``Enter in app 01``() = x.DoNamedTest()
     [<Test>] member x.``Enter in app 02``() = x.DoNamedTest()
