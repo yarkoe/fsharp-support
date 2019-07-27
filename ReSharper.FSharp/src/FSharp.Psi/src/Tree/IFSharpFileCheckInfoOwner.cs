@@ -4,8 +4,10 @@ using JetBrains.Annotations;
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Plugins.FSharp.Checker;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Tree;
+using JetBrains.Util.Caches;
 using Microsoft.FSharp.Core;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
@@ -19,7 +21,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 
     [NotNull] IFSharpResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
 
-    [CanBeNull] FSharpOption<FSharpParseFileResults> ParseResults { get; set; }
+    IParametrizedCachedValue<FSharpOption<FSharpParseFileResults>, IPsiSourceFile> ParseResultsCachedValue { get; set; }
+    [CanBeNull] FSharpOption<FSharpParseFileResults> ParseResults { get; }
 
     [CanBeNull]
     FSharpSymbolUse GetSymbolUse(int offset);

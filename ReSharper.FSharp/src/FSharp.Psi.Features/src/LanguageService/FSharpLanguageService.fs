@@ -1,7 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService
 
 open JetBrains.DocumentModel
-open JetBrains.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.LanguageService
@@ -15,7 +14,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.CSharp.Impl
 open JetBrains.ReSharper.Psi.Impl
-open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
@@ -28,10 +26,6 @@ type FSharpLanguageService
 
     let lexerFactory = FSharpLexerFactory()
 
-    let getSymbolsCache (psiModule: IPsiModule) =
-        if isNull psiModule then null else
-        psiModule.GetSolution().GetComponent<IFSharpResolvedSymbolsCache>()
-
     override x.IsCaseSensitive = true
     override x.SupportTypeMemberCache = true
     override x.CacheProvider = cacheProvider :> _
@@ -40,12 +34,11 @@ type FSharpLanguageService
     override x.CreateFilteringLexer(lexer) = lexer
 
     override x.CreateParser(lexer, _, sourceFile) =
-        let psiModule = if isNotNull sourceFile then sourceFile.PsiModule else null
-        FSharpParser(lexer, sourceFile, checkerService, getSymbolsCache psiModule) :> _
+        FSharpParser(lexer, sourceFile, checkerService) :> _
 
-    member x.CreateParser(document: IDocument, psiModule: IPsiModule) =
+    member x.CreateParser(document: IDocument) =
         let lexer = TokenBuffer(lexerFactory.CreateLexer(document.Buffer)).CreateLexer()
-        FSharpParser(lexer, document, checkerService, getSymbolsCache psiModule) :> IParser
+        FSharpParser(lexer, document, checkerService) :> IParser
 
     override x.IsTypeMemberVisible(typeMember) =
         match typeMember with
@@ -97,6 +90,6 @@ type FSharpLanguageService
     interface IFSharpLanguageService with
         member x.CreateParser(document: IDocument) =
             let lexer = TokenBuffer(lexerFactory.CreateLexer(document.Buffer)).CreateLexer()
-            FSharpParser(lexer, document, checkerService, null) :> _
+            FSharpParser(lexer, document, checkerService) :> _
         
         member x.CreateElementFactory(psiModule) = FSharpElementFactory(x, psiModule) :> _

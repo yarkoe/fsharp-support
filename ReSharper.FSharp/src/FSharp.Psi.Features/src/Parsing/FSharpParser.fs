@@ -5,17 +5,23 @@ open FSharp.Compiler.SourceCodeServices
 open JetBrains.Annotations
 open JetBrains.DocumentModel
 open JetBrains.Lifetimes
+open JetBrains.ProjectModel
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
+open JetBrains.Util.Caches
 
 type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sourceFile: IPsiSourceFile,
-                  checkerService: FSharpCheckerService, symbolsCache: IFSharpResolvedSymbolsCache) =
+                  checkerService: FSharpCheckerService) =
+
+    let solution = if isNull sourceFile then null else sourceFile.GetSolution()
+    let symbolsCache = if isNull solution then null else solution.GetComponent<IFSharpResolvedSymbolsCache>()
+    let parseCache = if isNull solution then null else solution.GetComponent<ParseTreeCache>()
 
     let tryCreateTreeBuilder lexer lifetime =
         Option.bind (fun (parseResults: FSharpParseFileResults) ->
@@ -49,18 +55,23 @@ type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sour
             tryCreateTreeBuilder lexer lifetime parseResults
             |> Option.defaultWith (fun _ -> createFakeBuilder lexer lifetime)
 
+        let parseResultsCachedValue =
+            match sourceFile with
+            | null -> CachedValues.CreateStrongParametrizedCachedValue(parseResults)
+            | _ -> CachedValues.CreateWeakParametrizedCachedValue(parseCache.ParseFunc, parseCache.Cache, parseResults)
+
         treeBuilder.CreateFSharpFile(CheckerService = checkerService,
-                                     ParseResults = parseResults,
+                                     ParseResultsCachedValue = parseResultsCachedValue,
                                      ResolvedSymbolsCache = symbolsCache,
                                      LanguageType = language)
 
-    new (lexer, [<NotNull>] sourceFile: IPsiSourceFile, checkerService, symbolsCache) =
+    new (lexer, [<NotNull>] sourceFile: IPsiSourceFile, checkerService) =
         let document = if isNotNull sourceFile then sourceFile.Document else null
         let path = if isNotNull sourceFile then sourceFile.GetLocation() else null
-        FSharpParser(lexer, document, path, sourceFile, checkerService, symbolsCache)
+        FSharpParser(lexer, document, path, sourceFile, checkerService)
 
-    new (lexer, document, checkerService, symbolsCache) =
-        FSharpParser(lexer, document, FSharpParser.SandBoxPath, null, checkerService, symbolsCache)
+    new (lexer, document, checkerService) =
+        FSharpParser(lexer, document, FSharpParser.SandBoxPath, null, checkerService)
 
     static member val SandBoxPath = FileSystemPath.Parse("Sandbox.fs")
 

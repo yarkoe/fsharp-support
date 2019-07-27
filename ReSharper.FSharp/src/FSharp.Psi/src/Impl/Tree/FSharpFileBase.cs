@@ -5,9 +5,11 @@ using JetBrains.Diagnostics;
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Plugins.FSharp.Checker;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Tree;
+using JetBrains.Util.Caches;
 using Microsoft.FSharp.Core;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
@@ -19,15 +21,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     // ReSharper disable once NotNullMemberIsNotInitialized
     public IFSharpResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
-
-    private readonly CachedPsiValue<FSharpOption<FSharpParseFileResults>> myParseResults =
-      new FileCachedPsiValue<FSharpOption<FSharpParseFileResults>>();
-
-    public FSharpOption<FSharpParseFileResults> ParseResults
-    {
-      get => myParseResults.GetValue(this, fsFile => CheckerService.ParseFile(SourceFile));
-      set => myParseResults.SetValue(this, value);
-    }
+    public IParametrizedCachedValue<FSharpOption<FSharpParseFileResults>, IPsiSourceFile> ParseResultsCachedValue { get; set; }
+    public FSharpOption<FSharpParseFileResults> ParseResults => ParseResultsCachedValue.GetOrCreate(GetSourceFile());
 
     PsiLanguageType IFSharpFileCheckInfoOwner.LanguageType { get; set; }/* = FSharpLanguage.Instance;*/
 
