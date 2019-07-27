@@ -1,6 +1,6 @@
 using JetBrains.ReSharper.Psi;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 {
   internal class FSharpMiscModuleResolvedSymbols : IFSharpModuleResolvedSymbols
   {

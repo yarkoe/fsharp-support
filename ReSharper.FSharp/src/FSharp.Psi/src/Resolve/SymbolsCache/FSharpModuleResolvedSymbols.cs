@@ -3,7 +3,7 @@ using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Threading;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 {
   public class FSharpModuleResolvedSymbols : IFSharpModuleResolvedSymbols
   {

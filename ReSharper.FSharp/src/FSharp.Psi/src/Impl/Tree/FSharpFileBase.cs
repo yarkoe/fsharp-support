@@ -4,8 +4,6 @@ using JetBrains.Annotations;
 using JetBrains.Diagnostics;
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Plugins.FSharp.Checker;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Tree;
@@ -19,8 +17,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     // ReSharper disable once NotNullMemberIsNotInitialized
     public FSharpCheckerService CheckerService { get; set; }
 
-    // ReSharper disable once NotNullMemberIsNotInitialized
-    public IFSharpResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
+    protected IFSharpResolvedSymbolsCache ResolvedSymbolsCache => CheckerService.SymbolsCache;
+
     public IParametrizedCachedValue<FSharpOption<FSharpParseFileResults>, IPsiSourceFile> ParseResultsCachedValue { get; set; }
     public FSharpOption<FSharpParseFileResults> ParseResults => ParseResultsCachedValue.GetOrCreate(GetSourceFile());
 

@@ -19,6 +19,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.Util
+open JetBrains.Util.Caches
 
 [<ShellComponent; AllowNullLiteral>]
 type FSharpCheckerService
@@ -54,6 +55,9 @@ type FSharpCheckerService
                 checker.Value.InvalidateAll())
 
     member val OptionsProvider = Unchecked.defaultof<IFSharpProjectOptionsProvider> with get, set
+    member val ParseTreeCache = Unchecked.defaultof<IParseTreeCache> with get, set
+    member val SymbolsCache = Unchecked.defaultof<IFSharpResolvedSymbolsCache> with get, set
+
     member x.Checker = checker.Value
 
     member x.ParseFile(path: FileSystemPath, document: IDocument, parsingOptions: FSharpParsingOptions) =
@@ -159,3 +163,21 @@ type IFSharpProjectOptionsProvider =
     abstract GetFileIndex: IPsiSourceFile -> int
     abstract HasPairFile: IPsiSourceFile -> bool
     abstract ModuleInvalidated: ISignal<IPsiModule>
+
+
+type IParseTreeCache =
+    abstract Cache: LRUWeakRefRetainerCache<FSharpParseFileResults option>
+    abstract ParseFunc: Func<IPsiSourceFile, FSharpParseFileResults option>
+
+
+type IFSharpResolvedSymbolsCache =
+    [<CanBeNull>] abstract GetSymbol: sourceFile: IPsiSourceFile * offset: int -> FSharpSymbol
+    [<CanBeNull>] abstract GetSymbolUse: sourceFile: IPsiSourceFile * offset: int -> FSharpSymbolUse
+    [<CanBeNull>] abstract GetSymbolDeclaration: sourceFile: IPsiSourceFile * offset: int -> FSharpSymbolUse
+    [<NotNull>] abstract GetAllDeclaredSymbols: sourceFile: IPsiSourceFile -> IReadOnlyList<FSharpResolvedSymbolUse>
+    [<NotNull>] abstract GetAllResolvedSymbols: sourceFile: IPsiSourceFile -> IReadOnlyList<FSharpResolvedSymbolUse>
+
+
+type FSharpResolvedSymbolUse =
+    { [<NotNull>] SymbolUse: FSharpSymbolUse
+      Range: TextRange }

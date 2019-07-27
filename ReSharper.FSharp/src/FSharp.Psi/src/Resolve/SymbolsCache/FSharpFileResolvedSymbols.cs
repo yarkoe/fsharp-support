@@ -19,7 +19,7 @@ using JetBrains.Util;
 using JetBrains.Util.DataStructures;
 using PrettyNaming = FSharp.Compiler.PrettyNaming;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 {
   public class FSharpFileResolvedSymbols : IFSharpFileResolvedSymbols
   {

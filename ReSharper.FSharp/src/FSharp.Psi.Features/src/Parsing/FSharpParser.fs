@@ -5,23 +5,17 @@ open FSharp.Compiler.SourceCodeServices
 open JetBrains.Annotations
 open JetBrains.DocumentModel
 open JetBrains.Lifetimes
-open JetBrains.ProjectModel
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.Util.Caches
 
 type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sourceFile: IPsiSourceFile,
                   checkerService: FSharpCheckerService) =
-
-    let solution = if isNull sourceFile then null else sourceFile.GetSolution()
-    let symbolsCache = if isNull solution then null else solution.GetComponent<IFSharpResolvedSymbolsCache>()
-    let parseCache = if isNull solution then null else solution.GetComponent<ParseTreeCache>()
 
     let tryCreateTreeBuilder lexer lifetime =
         Option.bind (fun (parseResults: FSharpParseFileResults) ->
@@ -55,6 +49,8 @@ type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sour
             tryCreateTreeBuilder lexer lifetime parseResults
             |> Option.defaultWith (fun _ -> createFakeBuilder lexer lifetime)
 
+        let parseCache = checkerService.ParseTreeCache
+
         let parseResultsCachedValue =
             match sourceFile with
             | null -> CachedValues.CreateStrongParametrizedCachedValue(parseResults)
@@ -62,7 +58,6 @@ type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sour
 
         treeBuilder.CreateFSharpFile(CheckerService = checkerService,
                                      ParseResultsCachedValue = parseResultsCachedValue,
-                                     ResolvedSymbolsCache = symbolsCache,
                                      LanguageType = language)
 
     new (lexer, [<NotNull>] sourceFile: IPsiSourceFile, checkerService) =

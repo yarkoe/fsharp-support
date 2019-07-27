@@ -3,8 +3,6 @@ using FSharp.Compiler.SourceCodeServices;
 using JetBrains.Annotations;
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Plugins.FSharp.Checker;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Tree;
 using JetBrains.Util.Caches;
@@ -18,8 +16,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
     FSharpOption<FSharpParseAndCheckResults> GetParseAndCheckResults(bool allowStaleResults, string opName);
 
     [NotNull] FSharpCheckerService CheckerService { get; set; }
-
-    [NotNull] IFSharpResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
 
     IParametrizedCachedValue<FSharpOption<FSharpParseFileResults>, IPsiSourceFile> ParseResultsCachedValue { get; set; }
     [CanBeNull] FSharpOption<FSharpParseFileResults> ParseResults { get; }
@@ -44,7 +40,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
     /// while opening chameleon expressions.
     [CanBeNull]
     IDocument StandaloneDocument { get; set; }
-    
+
     PsiLanguageType LanguageType { get; set; }
   }
 }

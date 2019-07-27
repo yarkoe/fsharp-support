@@ -10,16 +10,18 @@ using Microsoft.FSharp.Core;
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 {
   [SolutionComponent]
-  public class ParseTreeCache
+  public class ParseTreeCache : IParseTreeCache
   {
-
-    public LRUWeakRefRetainerCache<FSharpOption<FSharpParseFileResults>> Cache;
-    public readonly Func<IPsiSourceFile, FSharpOption<FSharpParseFileResults>> ParseFunc;
+    public LRUWeakRefRetainerCache<FSharpOption<FSharpParseFileResults>> Cache { get; }
+    public Func<IPsiSourceFile, FSharpOption<FSharpParseFileResults>> ParseFunc { get; }
 
     public ParseTreeCache(Lifetime lifetime, FSharpCheckerService checkerService)
     {
       Cache = new LRUWeakRefRetainerCache<FSharpOption<FSharpParseFileResults>>(lifetime, 5);
       ParseFunc = checkerService.ParseFile;
+
+      checkerService.ParseTreeCache = this;
+      lifetime.OnTermination(() => checkerService.ParseTreeCache = null);
     }
   }
 }

@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using FSharp.Compiler.SourceCodeServices;
+using JetBrains.ReSharper.Plugins.FSharp.Checker;
 using JetBrains.Util;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 {
   public class EmptyFileResolvedSymbols : IFSharpFileResolvedSymbols
   {

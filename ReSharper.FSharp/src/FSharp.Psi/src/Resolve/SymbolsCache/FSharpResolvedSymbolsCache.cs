@@ -14,7 +14,7 @@ using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve.SymbolsCache
 {
   [SolutionComponent]
   public class FSharpResolvedSymbolsCache : ICache, IFSharpResolvedSymbolsCache
@@ -34,6 +34,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       ProjectOptionsProvider = projectOptionsProvider;
 
       projectOptionsProvider.ModuleInvalidated.Advise(lifetime, Invalidate);
+
+      checkerService.SymbolsCache = this;
+      lifetime.OnTermination(() => checkerService.SymbolsCache = null);
     }
 
     private static bool IsApplicable(IPsiSourceFile sourceFile) =>

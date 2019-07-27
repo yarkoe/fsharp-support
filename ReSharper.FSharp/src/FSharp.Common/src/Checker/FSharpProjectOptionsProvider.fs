@@ -1,6 +1,5 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Checker
 
-open System
 open System.Collections.Generic
 open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Text
