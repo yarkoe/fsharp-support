@@ -28,22 +28,22 @@ type FSharpCheckerService
     let checker =
         Environment.SetEnvironmentVariable("FCS_CheckFileInProjectCacheSize", "20")
 
-        let settingsEntry =
-            let settingsKey = settingsSchema.GetKey<FSharpOptions>()
-            settingsKey.TryFindEntryByMemberName("BackgroundTypeCheck") :?> SettingsScalarEntry
+        let key = settingsSchema.GetKey<FSharpOptions>()
+        let settingsStore = settingsStore.BindToContextLive(lifetime, ContextRange.ApplicationWide)
 
-        let enableBgCheck =
-            settingsStore
-                .BindToContextLive(lifetime, ContextRange.ApplicationWide)
-                .GetValueProperty(lifetime, settingsEntry, null)
+        let bgTypeCheckEntry = key.TryFindEntryByMemberName("BackgroundTypeCheck") :?> SettingsScalarEntry
+        let enableBgCheckProperty = settingsStore.GetValueProperty(lifetime, bgTypeCheckEntry, null)
+
+        let projectCacheSizeEntry = key.TryFindEntryByMemberName("CheckProjectCacheSize") :?> SettingsScalarEntry
+        let projectCacheSize = settingsStore.GetValue(projectCacheSizeEntry, null) :?> int
 
         lazy
             let checker =
-                FSharpChecker.Create(projectCacheSize = 200,
+                FSharpChecker.Create(projectCacheSize = projectCacheSize,
                                      keepAllBackgroundResolutions = false,
-                                     ImplicitlyStartBackgroundWork = enableBgCheck.Value)
+                                     ImplicitlyStartBackgroundWork = enableBgCheckProperty.Value)
 
-            enableBgCheck.Change.Advise_NoAcknowledgement(lifetime, fun (ArgValue enabled) ->
+            enableBgCheckProperty.Change.Advise_NoAcknowledgement(lifetime, fun (ArgValue enabled) ->
                 checker.ImplicitlyStartBackgroundWork <- enabled)
 
             checker
