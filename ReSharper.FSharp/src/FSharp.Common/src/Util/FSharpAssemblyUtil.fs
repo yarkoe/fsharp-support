@@ -65,8 +65,28 @@ type BinaryReaderEx =
     new (stream, encoding) =
         { inherit BinaryReader(stream, encoding) }
 
+    override x.ReadString() =
+        let len = x.ReadPackedInt()
+        let bytes = x.ReadBytes(len)
+        Encoding.UTF8.GetString(bytes)
+
     member x.ReadPackedInt() =
-        base.Read7BitEncodedInt()
+        let b0 = int (x.ReadByte())
+
+        if b0 <= 0x7F then
+            b0
+        elif b0 <= 0xBF then
+            let b0 = b0 &&& 0x7F
+            let b1 = int (x.ReadByte())
+            (b0 <<< 8) ||| b1
+        else
+            assert(b0 = 0xFF)
+
+            let b0 = int (x.ReadByte())
+            let b1 = int (x.ReadByte())
+            let b2 = int (x.ReadByte())
+            let b3 = int (x.ReadByte())
+            b0 ||| (b1 <<< 8) ||| (b2 <<< 16) ||| (b3 <<< 24)
 
 
 let readStream (stream: Stream) =
@@ -97,12 +117,20 @@ let readStream (stream: Stream) =
     let valueDeclsNumber = reader.ReadPackedInt()
     let anonRecordDeclsNumber = if hasAnonRecordsDecls then reader.ReadPackedInt() else 0
 
+    let strings =
+        let stringsNumber = reader.ReadPackedInt()
+        let res = Array.zeroCreate stringsNumber
+        for i = 0 to stringsNumber - 1 do
+            res.[i] <- reader.ReadString()
+        res
+    
     let _ =
         ccuRefNames,
         typeDeclsNumber,
         typeParameterDeclsNumber,
         valueDeclsNumber,
-        anonRecordDeclsNumber
+        anonRecordDeclsNumber,
+        strings
 
     ()
 
