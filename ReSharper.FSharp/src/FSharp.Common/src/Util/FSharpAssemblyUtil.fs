@@ -4,7 +4,6 @@ module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpAssemblyUtil
 open System.Collections.Generic
 open System.IO
 open System.Text
-open FSharp.Compiler.Range
 open JetBrains.Diagnostics
 open JetBrains.Metadata.Reader.API
 open JetBrains.ProjectModel
@@ -53,21 +52,17 @@ let isSignatureDataResource (manifestResource: IMetadataManifestResource) (compi
     else false
 
 
-let mutable strings: string[] = null
-
 type FSharpSignatureDataResource =
     { CompilationUnitName: string
       Resource: IMetadataManifestResource }
 
 
-type BinaryReaderEx =
-    inherit BinaryReader
+type FSharpMetadataReader(stream, encoding) =
+    inherit BinaryReader(stream, encoding)
 
-    new (stream) =
-        { inherit BinaryReader(stream) }
-
-    new (stream, encoding) =
-        { inherit BinaryReader(stream, encoding) }
+    let findUniqueString (reader: FSharpMetadataReader) =
+        let id = reader.ReadPackedInt()
+        reader.Strings.[id]
 
     override x.ReadString() =
         let len = x.ReadPackedInt()
@@ -108,110 +103,97 @@ type BinaryReaderEx =
     member x.IgnoreBool() =
         x.ReadBool() |> ignore
 
-let ignoreSpace n (reader: BinaryReaderEx) =
+    member val Strings: string[] = null with get, set
+
+    member val FindUniqueString = findUniqueString
+
+
+let ignoreSpace n (reader: FSharpMetadataReader) =
     for i = 0 to n - 1 do
         reader.ReadByteAsInt() |> ignore
 
-let ignoreUsedSpace f (reader: BinaryReaderEx) =
+let ignoreUsedSpace f (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 1 ->
         f reader |> ignore
         ignoreSpace 1 reader
     | _ -> ()
 
-
-let readArray f (reader: BinaryReaderEx) =
+let readArray f (reader: FSharpMetadataReader) =
     let len = reader.ReadPackedInt()
     let res = Array.zeroCreate len
     for i = 0 to len - 1 do
         res.[i] <- f reader
     res
 
-let inline ignoreTuple2 f1 f2 (reader: BinaryReaderEx) =
+let inline ignoreTuple2 f1 f2 (reader: FSharpMetadataReader) =
     f1 reader |> ignore
     f2 reader |> ignore
 
-let inline ignoreTuple3 f1 f2 f3 (reader: BinaryReaderEx) =
+let inline ignoreTuple3 f1 f2 f3 (reader: FSharpMetadataReader) =
     f1 reader |> ignore
     f2 reader |> ignore
     f3 reader |> ignore
 
-let inline ignoreList f (reader: BinaryReaderEx) =
+let inline ignoreList f (reader: FSharpMetadataReader) =
     let len = reader.ReadPackedInt()
     for i = 0 to len - 1 do
         f reader |> ignore
 
-let ignoreNBytes n (reader: BinaryReaderEx) =
+let ignoreNBytes n (reader: FSharpMetadataReader) =
     for i = 0 to n - 1 do
         reader.ReadByte() |> ignore
 
-let readString (reader: BinaryReaderEx) =
+let readString (reader: FSharpMetadataReader) =
     reader.ReadString()
 
-let findUniqueString (reader: BinaryReaderEx) =
-    let id = reader.ReadPackedInt()
-    strings.[id]
-
-let readInt (reader: BinaryReaderEx) =
+let readInt (reader: FSharpMetadataReader) =
     reader.ReadPackedInt()
 
-let ignoreBool (reader: BinaryReaderEx) =
+let ignoreBool (reader: FSharpMetadataReader) =
     reader.IgnoreBool()
 
-let ignoreBytes (reader: BinaryReaderEx) =
+let ignoreBytes (reader: FSharpMetadataReader) =
     let n = readInt reader
     ignoreNBytes n reader
 
-let ignoreIntAndIgnoreList f (reader: BinaryReaderEx) =
+let ignoreIntAndIgnoreList f (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt()
     ignoreList f reader
 
-let readOption f (reader: BinaryReaderEx) =
+let readOption f (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> None
     | 1 -> Some (f reader)
     | n -> failwithf "readOption: %d" n
 
-let ignoreOption f (reader: BinaryReaderEx) =
+let ignoreOption f (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> ()
     | 1 -> f reader |> ignore
     | n -> failwithf "ignoreOption: %d" n
 
-let readRange (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore // path string id
-
-    let startLine = reader.ReadPackedInt()
-    let startColumn = reader.ReadPackedInt()
-    let endLine = reader.ReadPackedInt()
-    let endColumn = reader.ReadPackedInt()
-
-    let startPos = mkPos startLine startColumn 
-    let endPos = mkPos endLine endColumn
-
-    mkFileIndexRange 0 startPos endPos
-
-let ignoreRange (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore // path string id
+let ignoreRange (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore // path string id
     reader.IgnorePackedInt() // start line
     reader.IgnorePackedInt() // start column
     reader.IgnorePackedInt() // end line
     reader.IgnorePackedInt() // end column
 
-let ignoreRanges (reader: BinaryReaderEx) =
+let ignoreRanges (reader: FSharpMetadataReader) =
     ignoreRange reader
     ignoreRange reader
 
-let ignoreIdent (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore // string id
+let ignoreIdent (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore // string id
     ignoreRange reader
 
-let readIdentAsString (reader: BinaryReaderEx) =
-    let id = findUniqueString reader
+let readIdentAsString (reader: FSharpMetadataReader) =
+    let id = reader.FindUniqueString reader
     ignoreRange reader
     id
 
-let ignoreMemberFlags (reader: BinaryReaderEx) =
+let ignoreMemberFlags (reader: FSharpMetadataReader) =
     reader.IgnoreByte() // is instance
     reader.IgnoreByte() // reserved space
     reader.IgnoreByte() // is dispatch slot
@@ -219,92 +201,92 @@ let ignoreMemberFlags (reader: BinaryReaderEx) =
     reader.IgnoreByte() // is final
     reader.IgnoreByte() // member kind
 
-let ignoreModuleRef (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore
+let ignoreModuleRef (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore
     reader.IgnoreBool()
     ignoreOption ignoreBytes reader
 
-let ignoreILPublicKey (reader: BinaryReaderEx) =
+let ignoreILPublicKey (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 | 1 -> ignoreBytes reader
     | n -> failwithf "ilPublicKey: %d" n
 
-let ignoreILVersion (reader: BinaryReaderEx) =
+let ignoreILVersion (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt()
     reader.IgnorePackedInt()
     reader.IgnorePackedInt()
     reader.IgnorePackedInt()
 
-let ignoreAssemblyRef (reader: BinaryReaderEx) =
+let ignoreAssemblyRef (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
-        findUniqueString reader |> ignore
+        reader.FindUniqueString reader |> ignore
         ignoreOption ignoreBytes reader
         ignoreILPublicKey reader
         reader.IgnoreBool()
         ignoreOption ignoreILVersion reader
-        ignoreOption findUniqueString reader
+        ignoreOption reader.FindUniqueString reader
     | n -> failwithf "ilAssemblyRef: %d" n
 
-let ignoreILScopeRef (reader: BinaryReaderEx) =
+let ignoreILScopeRef (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> () // ILScopeRef.Local
     | 1 -> ignoreModuleRef reader // ILScopeRef.Module
     | 2 -> ignoreAssemblyRef reader // ILScopeRef.Assembly
     | n -> failwithf "ilScopeRef: %d" n
 
-let ignoreILTypeRef (reader: BinaryReaderEx) =
+let ignoreILTypeRef (reader: FSharpMetadataReader) =
      ignoreILScopeRef reader
-     ignoreList findUniqueString reader
-     findUniqueString reader |> ignore
+     ignoreList reader.FindUniqueString reader
+     reader.FindUniqueString reader |> ignore
 
-let ignoreIsType (reader: BinaryReaderEx) =
+let ignoreIsType (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 | 1 | 2 -> ()
     | n -> failwithf "isType: %d" n
 
-let ignoreCompilationPathPart (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore // name
+let ignoreCompilationPathPart (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore // name
     ignoreIsType reader
 
-let ignoreCompilationPath (reader: BinaryReaderEx) =
+let ignoreCompilationPath (reader: FSharpMetadataReader) =
     ignoreILScopeRef reader
     ignoreList ignoreCompilationPathPart reader
 
-let ignoreAccess (reader: BinaryReaderEx) =
+let ignoreAccess (reader: FSharpMetadataReader) =
     ignoreList ignoreCompilationPath reader
 
-let ignoreILBasicCallConv (reader: BinaryReaderEx) =
+let ignoreILBasicCallConv (reader: FSharpMetadataReader) =
     let n = reader.ReadByteAsInt()
     if n >= 0 && n <= 5 then () else
     failwithf "ilBasicCallConv: %d" n
 
-let ignoreILHasThis (reader: BinaryReaderEx) =
+let ignoreILHasThis (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 | 1 | 2 -> ()
     | n -> failwithf "ilHasThis: %d" n
 
-let ignoreCallConv (reader: BinaryReaderEx) =
+let ignoreCallConv (reader: FSharpMetadataReader) =
     ignoreILHasThis reader
     ignoreILBasicCallConv reader
 
-let ignoreTypeRef (reader: BinaryReaderEx) =
+let ignoreTypeRef (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 | 1 -> reader.IgnorePackedInt()
     | n -> failwithf "typeRef: %d" n
 
-let ignoreTypeKind (reader: BinaryReaderEx) =
+let ignoreTypeKind (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 | 1 -> ()
     | n -> failwithf "typeKind: %d" n
 
-let ignoreAnonRecordInfo (reader: BinaryReaderEx) =
+let ignoreAnonRecordInfo (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt() // info unique id
     reader.IgnorePackedInt() // ccu ref unique id
     reader.IgnoreBool() // is struct
     ignoreList ignoreIdent reader // field names
 
-let rec ignoreMeasureExpr (reader: BinaryReaderEx) =
+let rec ignoreMeasureExpr (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> ignoreTypeRef reader // Measure.Con
     | 1 -> ignoreMeasureExpr reader // Measure.Inv
@@ -324,11 +306,11 @@ let rec ignoreMeasureExpr (reader: BinaryReaderEx) =
 
     | n -> failwithf "u_measure_expr: %d" n
 
-let readRecordFieldRef (reader: BinaryReaderEx) =
+let readRecordFieldRef (reader: FSharpMetadataReader) =
     ignoreTypeRef reader
-    findUniqueString reader |> ignore // field ident
+    reader.FindUniqueString reader |> ignore // field ident
 
-let ignoreConst (reader: BinaryReaderEx) =
+let ignoreConst (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> reader.IgnoreBool()  // bool
     | 1 -> reader.IgnorePackedInt() // int8
@@ -344,13 +326,13 @@ let ignoreConst (reader: BinaryReaderEx) =
     | 11 -> reader.IgnorePackedInt() // single
     | 12 -> reader.ReadInt64() |> ignore // double
     | 13 -> reader.ReadInt16() |> ignore // char
-    | 14 -> findUniqueString reader |> ignore // string
+    | 14 -> reader.FindUniqueString reader |> ignore // string
     | 15 -> () // unit
     | 16 -> () // zero
     | 17 -> ignoreList readInt reader
     | _ -> failwith "u_const"
 
-let rec ignoreType (reader: BinaryReaderEx) =
+let rec ignoreType (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> ignoreList ignoreType reader // TType_tuple
     | 1 -> reader.IgnorePackedInt() // simple type from table
@@ -391,7 +373,7 @@ let rec ignoreType (reader: BinaryReaderEx) =
     | n -> failwithf "type: %d" n
 
 
-and ignoreExpr (reader: BinaryReaderEx) =
+and ignoreExpr (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         //Expr.Const
@@ -454,7 +436,7 @@ and ignoreExpr (reader: BinaryReaderEx) =
     | 10 ->
         //Expr.Obj
         ignoreType reader
-        readOption ignoreVal reader |> ignore
+        ignoreOption ignoreVal reader
         ignoreExpr reader
         ignoreList readMethod reader
         ignoreList readInterfaceImpl reader
@@ -477,7 +459,7 @@ and ignoreExpr (reader: BinaryReaderEx) =
 
     | _ -> failwith "readExpr"
 
-and ignoreOp (reader: BinaryReaderEx) =
+and ignoreOp (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // TOp.UnionCase
@@ -601,29 +583,29 @@ and ignoreOp (reader: BinaryReaderEx) =
 
     | _ -> failwith "u_op"
 
-and readILMethodRef (reader: BinaryReaderEx) =
+and readILMethodRef (reader: FSharpMetadataReader) =
     ignoreILTypeRef reader
     ignoreCallConv reader
     reader.IgnorePackedInt() // generic arity
-    findUniqueString reader |> ignore // name
+    reader.FindUniqueString reader |> ignore // name
     ignoreList ignoreType reader // arg types
     ignoreType reader // return type
 
-and ignoreNonLocalValRef (reader: BinaryReaderEx) =
+and ignoreNonLocalValRef (reader: FSharpMetadataReader) =
     ignoreTypeRef reader
-    ignoreOption findUniqueString reader
+    ignoreOption reader.FindUniqueString reader
     ignoreBool reader
-    findUniqueString reader |> ignore
+    reader.FindUniqueString reader |> ignore
     reader.IgnorePackedInt()
     ignoreOption ignoreType reader
 
-and ignoreValRef (reader: BinaryReaderEx) =
+and ignoreValRef (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> reader.IgnorePackedInt() // VRefLocal
     | 1 -> ignoreNonLocalValRef reader // VRefNonLocal
     | n -> failwithf "valRef: %d" n
 
-and ignoreTraitConstraintSolution (reader: BinaryReaderEx) =
+and ignoreTraitConstraintSolution (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // ILMethSln
@@ -660,15 +642,15 @@ and ignoreTraitConstraintSolution (reader: BinaryReaderEx) =
 
     | n -> failwithf "traitConstraintSolution: %d" n
 
-and ignoreTraitConstraint (reader: BinaryReaderEx) =
+and ignoreTraitConstraint (reader: FSharpMetadataReader) =
     ignoreList ignoreType reader
-    findUniqueString reader |> ignore // id string id
+    reader.FindUniqueString reader |> ignore // id string id
     ignoreMemberFlags reader
     ignoreList ignoreType reader
     ignoreOption ignoreType reader
     ignoreOption ignoreTraitConstraintSolution reader
 
-and readTyparConstraint (reader: BinaryReaderEx) =
+and readTyparConstraint (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // TyparConstraint.CoercesTo
@@ -697,16 +679,16 @@ and readTyparConstraint (reader: BinaryReaderEx) =
     | 12 -> () // TyparConstraint.IsUnmanaged
     | n -> failwithf "typarConstraint: %d" n
 
-and ignoreUnionCaseRef (reader: BinaryReaderEx) =
+and ignoreUnionCaseRef (reader: FSharpMetadataReader) =
     ignoreTypeRef reader
-    findUniqueString reader |> ignore
+    reader.FindUniqueString reader |> ignore
 
-and readValRefFlags (reader: BinaryReaderEx) =
+and readValRefFlags (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 3 -> ignoreType reader
     | _ -> ()
 
-and ignoreDecisionTree (reader: BinaryReaderEx) =
+and ignoreDecisionTree (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // TDSwitch
@@ -724,11 +706,11 @@ and ignoreDecisionTree (reader: BinaryReaderEx) =
     | _ -> 
         failwith "u_dtree"
 
-and ignoreDecisionTreeCase (reader: BinaryReaderEx) =
+and ignoreDecisionTreeCase (reader: FSharpMetadataReader) =
     ignoreDecisionTreeDiscriminator reader
     ignoreDecisionTree reader
 
-and ignoreDecisionTreeDiscriminator (reader: BinaryReaderEx) =
+and ignoreDecisionTreeDiscriminator (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // DecisionTreeTest.UnionCase
@@ -751,61 +733,61 @@ and ignoreDecisionTreeDiscriminator (reader: BinaryReaderEx) =
     | _ -> failwith "u_dtree_discrim"
 
 
-and readAttributeKind (reader: BinaryReaderEx) =
+and readAttributeKind (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> readILMethodRef reader
     | 1 -> ignoreValRef reader
     | _ -> failwith "u_attribkind"
 
-and readAttributeExpr (reader: BinaryReaderEx) =
+and readAttributeExpr (reader: FSharpMetadataReader) =
     ignoreExpr reader // source
     ignoreExpr reader // evaluated
 
-and readAttributeArg (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore
+and readAttributeArg (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore
     ignoreType reader
     reader.IgnoreBool()
     readAttributeExpr reader
 
-and ignoreAttribute (reader: BinaryReaderEx) =
+and ignoreAttribute (reader: FSharpMetadataReader) =
     ignoreTypeRef reader
     readAttributeKind reader
     ignoreList readAttributeExpr reader
     ignoreList readAttributeArg reader
     reader.IgnoreBool()
 
-and readMethod (reader: BinaryReaderEx) =
+and readMethod (reader: FSharpMetadataReader) =
     ignoreSlotSig reader
     ignoreList ignoreAttribute reader
     ignoreList ignoreTypar reader
     ignoreList ignoreVal reader
     ignoreExpr reader
 
-and readInterfaceImpl (reader: BinaryReaderEx) =
+and readInterfaceImpl (reader: FSharpMetadataReader) =
     ignoreType reader
     ignoreList readMethod reader
 
-and ignoreTypar (reader: BinaryReaderEx) =
+and ignoreTypar (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt() // typar id
 
     let id = readIdentAsString reader
     ignoreList ignoreAttribute reader
     reader.ReadInt64() |> ignore
     ignoreList readTyparConstraint reader
-    ignoreList findUniqueString reader // xml doc id
+    ignoreList reader.FindUniqueString reader // xml doc id
 
-and ignoreBind (reader: BinaryReaderEx) =
+and ignoreBind (reader: FSharpMetadataReader) =
     ignoreVal reader
     ignoreExpr reader
 
-and readTarget (reader: BinaryReaderEx) =
+and readTarget (reader: FSharpMetadataReader) =
     ignoreList ignoreVal reader
     ignoreExpr reader
 
-and readTargets (reader: BinaryReaderEx) =
+and readTargets (reader: FSharpMetadataReader) =
     ignoreList readTarget reader
 
-and readStaticOptimizationConstraint (reader: BinaryReaderEx) =
+and readStaticOptimizationConstraint (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         ignoreType reader
@@ -815,75 +797,75 @@ and readStaticOptimizationConstraint (reader: BinaryReaderEx) =
     | n ->
         failwithf "staticOptimizationConstraint: %d" n
 
-and readSlotParam (reader: BinaryReaderEx) =
-    ignoreOption findUniqueString reader
+and readSlotParam (reader: FSharpMetadataReader) =
+    ignoreOption reader.FindUniqueString reader
     ignoreType reader
     reader.IgnoreBool()
     reader.IgnoreBool()
     reader.IgnoreBool()
     ignoreList ignoreAttribute reader
 
-and ignoreSlotSig (reader: BinaryReaderEx) =
-    findUniqueString reader |> ignore // name
+and ignoreSlotSig (reader: FSharpMetadataReader) =
+    reader.FindUniqueString reader |> ignore // name
     ignoreType reader // declaring type
     ignoreList ignoreTypar reader // type type parameters
     ignoreList ignoreTypar reader // method type parameters
     ignoreList (ignoreList readSlotParam) reader // slot parameters
     ignoreOption ignoreType reader // return type
 
-and ignoreMemberInfo (reader: BinaryReaderEx) =
+and ignoreMemberInfo (reader: FSharpMetadataReader) =
     ignoreTypeRef reader // apparent enclosing entity
     ignoreMemberFlags reader // member flags
     ignoreList ignoreSlotSig reader // implemented signatures
     reader.IgnoreBool() // is implemented 
 
-and ignoreVal (reader: BinaryReaderEx) =
+and ignoreVal (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt() // val id
-    let logicalName = findUniqueString reader
-    let compiledName = readOption findUniqueString reader
+    let logicalName = reader.FindUniqueString reader
+    let compiledName = readOption reader.FindUniqueString reader
     ignoreOption ignoreRanges reader
     ignoreType reader
     reader.ReadInt64() |> ignore // val flags
     ignoreOption ignoreMemberInfo reader
     ignoreList ignoreAttribute reader
     ignoreOption ignoreValReprInfo reader
-    findUniqueString reader |> ignore
+    reader.FindUniqueString reader |> ignore
     ignoreAccess reader
     ignoreParentRef reader
     ignoreOption ignoreConst reader
-    ignoreUsedSpace (ignoreList findUniqueString) reader
+    ignoreUsedSpace (ignoreList reader.FindUniqueString) reader
 
-and ignoreArgReprInfo (reader: BinaryReaderEx) =
+and ignoreArgReprInfo (reader: FSharpMetadataReader) =
     ignoreList ignoreAttribute reader
     ignoreOption ignoreIdent reader
 
-and ignoreTyparReprInfo (reader: BinaryReaderEx) =
+and ignoreTyparReprInfo (reader: FSharpMetadataReader) =
     ignoreIdent reader
     ignoreTypeKind reader
 
-and ignoreValReprInfo (reader: BinaryReaderEx) =
+and ignoreValReprInfo (reader: FSharpMetadataReader) =
     ignoreList ignoreTyparReprInfo reader
     ignoreList (ignoreList ignoreArgReprInfo) reader
     ignoreArgReprInfo reader
 
-and ignoreParentRef (reader: BinaryReaderEx) =
+and ignoreParentRef (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> () // ParentNone
     | 1 -> ignoreTypeRef reader // Parent
     | n -> failwithf "parentRef: %d" n
 
-let readTypeAugmentation (reader: BinaryReaderEx) =
+let readTypeAugmentation (reader: FSharpMetadataReader) =
     ignoreOption (ignoreTuple2 ignoreValRef ignoreValRef) reader
     ignoreOption ignoreValRef reader
     ignoreOption (ignoreTuple3 ignoreValRef ignoreValRef ignoreValRef) reader
     ignoreOption (ignoreTuple2 ignoreValRef ignoreValRef) reader
-    ignoreList (ignoreTuple2 findUniqueString ignoreValRef) reader
+    ignoreList (ignoreTuple2 reader.FindUniqueString ignoreValRef) reader
     ignoreList (ignoreTuple2 ignoreType ignoreBool) reader
     ignoreOption ignoreType reader
     ignoreBool reader
     ignoreSpace 1 reader
 
-let ignoreListWithExtraValue extra f (reader: BinaryReaderEx) =
+let ignoreListWithExtraValue extra f (reader: FSharpMetadataReader) =
     let n = reader.ReadPackedInt()
     if n &&& 0x80000000 = 0x80000000 then
         extra reader
@@ -891,7 +873,7 @@ let ignoreListWithExtraValue extra f (reader: BinaryReaderEx) =
     for i = 0 to n - 1 do
         f reader |> ignore
 
-let ignoreRecordField (reader: BinaryReaderEx) =
+let ignoreRecordField (reader: FSharpMetadataReader) =
     ignoreBool reader // mutable
     ignoreBool reader // volatile
     ignoreType reader // field type
@@ -899,12 +881,12 @@ let ignoreRecordField (reader: BinaryReaderEx) =
     ignoreBool reader // secret
     ignoreOption ignoreConst reader // literal value
     ignoreIdent reader // name
-    ignoreListWithExtraValue (ignoreList findUniqueString) ignoreAttribute reader 
+    ignoreListWithExtraValue (ignoreList reader.FindUniqueString) ignoreAttribute reader 
     ignoreList ignoreAttribute reader // backing field attributes
-    findUniqueString reader |> ignore // xml doc id
+    reader.FindUniqueString reader |> ignore // xml doc id
     ignoreAccess reader //
 
-let ignoreExceptionTypeRepr (reader: BinaryReaderEx) =
+let ignoreExceptionTypeRepr (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> ignoreTypeRef reader // TExnAbbrevRepr
     | 1 -> ignoreILTypeRef reader // TExnAsmRepr
@@ -912,28 +894,28 @@ let ignoreExceptionTypeRepr (reader: BinaryReaderEx) =
     | 3 -> () // TExnNone
     | n -> failwithf "exceptionTypeRepr: %d" n
 
-let ignoreUnionCase (reader: BinaryReaderEx) =
+let ignoreUnionCase (reader: FSharpMetadataReader) =
     ignoreList ignoreRecordField reader
     ignoreType reader
-    findUniqueString reader |> ignore
+    reader.FindUniqueString reader |> ignore
     ignoreIdent reader
-    ignoreListWithExtraValue (ignoreList findUniqueString) ignoreAttribute reader
-    findUniqueString reader |> ignore
+    ignoreListWithExtraValue (ignoreList reader.FindUniqueString) ignoreAttribute reader
+    reader.FindUniqueString reader |> ignore
     ignoreAccess reader
 
-let ignoreArrayBounds (reader: BinaryReaderEx) =
+let ignoreArrayBounds (reader: FSharpMetadataReader) =
     ignoreOption readInt reader
     ignoreOption readInt reader
 
-let ignoreILArrayShape (reader: BinaryReaderEx) =
+let ignoreILArrayShape (reader: FSharpMetadataReader) =
     ignoreList ignoreArrayBounds reader
 
-let ignoreILCallSig (reader: BinaryReaderEx) =
+let ignoreILCallSig (reader: FSharpMetadataReader) =
     ignoreCallConv reader
     ignoreList ignoreType reader
     ignoreTypar reader
 
-let rec ignoreILType (reader: BinaryReaderEx) =
+let rec ignoreILType (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> () // ILType.Void
 
@@ -957,11 +939,11 @@ let rec ignoreILType (reader: BinaryReaderEx) =
 
     | n -> failwithf "ilType: %d" n
 
-and ignoreILTypeSpec (reader: BinaryReaderEx) =
+and ignoreILTypeSpec (reader: FSharpMetadataReader) =
     ignoreTypeRef reader // type ref
     ignoreList ignoreILType reader // substitution
 
-let ignoreTypeObjectModelKind (reader: BinaryReaderEx) =
+let ignoreTypeObjectModelKind (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 -> () // TTyconClass
     | 1 -> () // TTyconInterface
@@ -971,7 +953,7 @@ let ignoreTypeObjectModelKind (reader: BinaryReaderEx) =
     | n -> failwithf "typeObjectModelKind: %d" n
 
 /// Returns true when additional reading of provided generated type should be done later.
-let ignoreTypeRepr (reader: BinaryReaderEx) =
+let ignoreTypeRepr (reader: FSharpMetadataReader) =
     match reader.ReadByteAsInt() with
     | 0 ->
         // TNoRepr
@@ -1009,23 +991,23 @@ let ignoreTypeRepr (reader: BinaryReaderEx) =
         | n -> failwithf "typeRepr: %d" n
     | n -> failwithf "typeRepr: %d" n
 
-let rec ignoreModuleType (reader: BinaryReaderEx) =
+let rec ignoreModuleType (reader: FSharpMetadataReader) =
     ignoreIsType reader
     ignoreList ignoreVal reader
     ignoreList readEntity reader
 
-and ignoreModuleTypeWrapper (reader: BinaryReaderEx) =
+and ignoreModuleTypeWrapper (reader: FSharpMetadataReader) =
     for i in 1 .. 7 do
         reader.ReadInt32() |> ignore
     ignoreModuleType reader
 
-and readEntity (reader: BinaryReaderEx) =
+and readEntity (reader: FSharpMetadataReader) =
     reader.IgnorePackedInt() // entity id
 
     ignoreList ignoreTypar reader
 
-    let logicalName = findUniqueString reader
-    let compiledName = readOption findUniqueString reader
+    let logicalName = reader.FindUniqueString reader
+    let compiledName = readOption reader.FindUniqueString reader
     ignoreRange reader
 
     ignoreOption readInt reader
@@ -1035,13 +1017,13 @@ and readEntity (reader: BinaryReaderEx) =
     ignoreTypeRepr reader |> ignore // here's returned flag for generated provided type
     ignoreOption ignoreType reader // abbreviation
     readTypeAugmentation reader
-    findUniqueString reader |> ignore
+    reader.FindUniqueString reader |> ignore
     ignoreTypeKind reader
     reader.ReadInt64() |> ignore // is generated provided type flag
     ignoreOption ignoreCompilationPath reader
     ignoreModuleTypeWrapper reader
     ignoreExceptionTypeRepr reader
-    ignoreUsedSpace (ignoreList findUniqueString) reader
+    ignoreUsedSpace (ignoreList reader.FindUniqueString) reader
 
     let _ =
         logicalName,
@@ -1049,15 +1031,15 @@ and readEntity (reader: BinaryReaderEx) =
     
     ()
 
-let readModuleOrNamespace (reader: BinaryReaderEx) =
+let readModuleOrNamespace (reader: FSharpMetadataReader) =
     readEntity reader
 
-    findUniqueString reader |> ignore // compile time working dir string id
+    reader.FindUniqueString reader |> ignore // compile time working dir string id
     reader.IgnorePackedInt() // uses quotations
     ignoreNBytes 3 reader // reserved space
 
 let readStream (stream: Stream) =
-    use reader = new BinaryReaderEx(stream, Encoding.UTF8)
+    use reader = new FSharpMetadataReader(stream, Encoding.UTF8)
 
     // F# compiler uses "ccu" term for cross-compilation unit.
     let ccuRefNames =
@@ -1084,7 +1066,7 @@ let readStream (stream: Stream) =
     let valueDeclsNumber = reader.ReadPackedInt()
     let anonRecordDeclsNumber = if hasAnonRecordsDecls then reader.ReadPackedInt() else 0
 
-    strings <- readArray readString reader
+    reader.Strings <- readArray readString reader
 
     ignoreList (ignoreList readInt) reader // u_encoded_pubpath
     ignoreList (ignoreIntAndIgnoreList readInt) reader // u_encoded_nleref
@@ -1099,7 +1081,7 @@ let readStream (stream: Stream) =
         typeParameterDeclsNumber,
         valueDeclsNumber,
         anonRecordDeclsNumber,
-        strings
+        reader.Strings
 
     ()
 
