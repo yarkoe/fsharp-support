@@ -218,3 +218,24 @@ type SingleUnionCaseRenameEvaluator() =
                 [| containingType :> IDeclaredElement |] :> _
 
             | _ -> [] :> _
+
+
+[<DerivedRenamesEvaluator>]
+type AssociatedModuleRenameEvaluator() =
+    interface IDerivedRenamesEvaluator with
+        member x.SuggestedElementsHaveDerivedName = false
+        member x.CreateFromReference(_, _) = EmptyList.Instance :> _
+
+        member x.CreateFromElement(initialElement, _) =
+            match initialElement.FirstOrDefault() with
+            | :? IModule as moduleElement ->
+                match moduleElement.AssociatedTypeElement with
+                | null -> [] :> _
+                | typeElement -> [| typeElement :> IDeclaredElement |] :> _
+
+            | :? ITypeElement as typeElement ->
+                match typeElement.GetAssociatedModule() with
+                | null -> [] :> _
+                | moduleElement -> [| moduleElement :> IDeclaredElement |] :> _
+
+            | _ -> [] :> _
