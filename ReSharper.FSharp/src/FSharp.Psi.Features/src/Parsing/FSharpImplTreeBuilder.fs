@@ -449,7 +449,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset) =
                             fieldMark
 
                     x.ProcessPat(pat, isLocal, false)
-                    x.Done(fieldMark, ElementType.RECORD_FIELD_PAT)
+                    x.Done(fieldMark, ElementType.FIELD_PAT)
                 ElementType.RECORD_PAT
 
             | SynPat.IsInst(typ, _) ->

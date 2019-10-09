@@ -204,6 +204,7 @@ interface synPat:
   consPat |
   wildPat |
   constPat |
+  fieldPat |
   otherPat;
 
 interface namedPat:
@@ -307,10 +308,10 @@ parenPat options { stubBase="SynPatternBase"; }:
 
 recordPat options { stubBase="SynPatternBase"; }:
   LBRACE
-  recordFieldPat<FIELD_PAT, FieldPatterns>*
+  fieldPat<FIELD_PAT, FieldPatterns>*
   RBRACE;
 
-recordFieldPat:
+fieldPat options { stubBase="SynPatternBase"; }:
   expressionReferenceName<REFERENCE_NAME, ReferenceName>
   EQUALS
   synPat<PAT, Pattern>;
