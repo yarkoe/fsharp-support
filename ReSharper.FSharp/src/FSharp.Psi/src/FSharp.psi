@@ -649,7 +649,7 @@ referenceExpr options { stubBase="FSharpExpressionBase"; } extras {
   fSharpIdentifier<IDENTIFIER, Identifier>
   prefixAppTypeArgumentList<TYPE_ARG_LIST, TypeArgumentsList>?;
 
-matchClause options { stubBase="FSharpExpressionBase"; }:
+matchClause:
   BAR<BAR, Bar>?
   synPat<PAT, Pattern>
   RARROW<RARROW, RArrow>
