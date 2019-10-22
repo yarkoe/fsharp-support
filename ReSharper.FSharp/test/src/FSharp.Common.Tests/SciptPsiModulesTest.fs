@@ -20,6 +20,7 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.TestFramework
 open JetBrains.TestFramework.Projects
+open JetBrains.Util
 open NUnit.Framework
 
 type ScriptPsiModulesTest() =
@@ -78,13 +79,20 @@ type ScriptPsiModulesTest() =
 [<SolutionInstanceComponent>]
 type MyTestSolutionToolset(lifetime: Lifetime, buildToolContainer: BuildToolContainer) =
     inherit DefaultSolutionToolset(lifetime)
-    
+
     let changed = new Signal<_>(lifetime, "MySolutionToolset::Changed")
-    let buildTool = buildToolContainer.GetAutoDetected(BuildToolEnvironment.EmptyEnvironment)
-    
+    let buildTool =
+        let sdkDir = Environment.GetEnvironmentVariable("DOTNET_SDK_DIRECTORY")
+        if sdkDir.IsNullOrEmpty() then
+            buildToolContainer.GetAutoDetected(BuildToolEnvironment.EmptyEnvironment)
+        else
+            let sdkPath = FileSystemPath.TryParse(sdkDir)
+            CustomBuildTool(sdkPath / "dotnet.exe") :> _
+
     interface ISolutionToolset with
         member x.GetBuildTool() = buildTool
         member x.Changed = changed :> _
+
 
 [<ZoneActivator>]
 type SolutionHostZoneActivator() =
