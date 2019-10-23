@@ -13,8 +13,7 @@ F# support in Rider makes use of open source software, most notably [FSharp.Comp
 
 ### Requirements
 
-* [.NET Framework 4.6.1 Developer Pack](https://www.microsoft.com/en-us/download/details.aspx?id=49978)
-* [.NET Core SDK 2.0+](https://www.microsoft.com/net/download/windows) for MSBuild 15 and F# build targets
+* [.NET Core SDK 2.0+](https://www.microsoft.com/net/download/windows)
 * [JDK 1.8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 
 ### Optional
