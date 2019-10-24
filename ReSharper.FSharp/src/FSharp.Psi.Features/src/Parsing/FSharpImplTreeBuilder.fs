@@ -100,16 +100,6 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset) =
         | decl ->
             failwithf "unexpected decl: %O" decl
 
-    member x.ProcessHashDirective(ParsedHashDirective(id, _, range)) =
-        let mark = x.Mark(range)
-        let elementType =
-            match id with
-            | "l" | "load" -> ElementType.LOAD_DIRECTIVE
-            | "r" | "reference" -> ElementType.REFERENCE_DIRECTIVE
-            | "I" -> ElementType.I_DIRECTIVE
-            | _ -> ElementType.OTHER_DIRECTIVE
-        x.Done(range, mark, elementType)
-
     member x.ProcessTypeDefn(TypeDefn(ComponentInfo(attrs, typeParams, _, lid , _, _, _, _), repr, members, range) as typeDefn) =
         match repr with
         | SynTypeDefnRepr.ObjectModel(SynTypeDefnKind.TyconAugmentation, _, _) ->
@@ -1046,6 +1036,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset) =
         // Start node at id range, end at expr range.
         let mark = x.Mark(idRange)
         x.PushRangeForMark(range, mark, ElementType.RECORD_EXPR_BINDING)
+        x.MarkAndDone(idRange, ElementType.EXPRESSION_REFERENCE_NAME)
         x.ProcessExpression(expr)
 
     member x.ProcessRecordField(field: (RecordFieldName * (SynExpr option) * BlockSeparator option)) =

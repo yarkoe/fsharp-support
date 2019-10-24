@@ -531,6 +531,7 @@ type FSharpTreeBuilderBase(lexer: ILexer, document: IDocument, lifetime: Lifetim
             let mark = x.Mark(range)
             for IdentRange range, synType in fields do
                 let mark = x.Mark(range)
+                x.MarkAndDone(range, ElementType.EXPRESSION_REFERENCE_NAME)
                 x.ProcessType(synType)
                 x.Done(range, mark, ElementType.ANON_RECORD_FIELD)
             x.Done(range, mark, ElementType.ANON_RECORD_TYPE)
@@ -590,3 +591,13 @@ type FSharpTreeBuilderBase(lexer: ILexer, document: IDocument, lifetime: Lifetim
         x.Builder.AlterToken(tokenMark, FSharpTokenType.CHAMELEON)
 
         x.Done(range, mark, ChameleonExpressionNodeType.Instance, expr)
+
+    member x.ProcessHashDirective(ParsedHashDirective(id, _, range)) =
+        let mark = x.Mark(range)
+        let elementType =
+            match id with
+            | "l" | "load" -> ElementType.LOAD_DIRECTIVE
+            | "r" | "reference" -> ElementType.REFERENCE_DIRECTIVE
+            | "I" -> ElementType.I_DIRECTIVE
+            | _ -> ElementType.OTHER_DIRECTIVE
+        x.Done(range, mark, elementType)

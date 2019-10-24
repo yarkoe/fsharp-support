@@ -39,3 +39,21 @@ module IgnoreAll =
         member _.Delay(f) = f ()
 
     let ignoreAll = IgnoreAllBuilder()
+
+
+[<AutoOpen>]
+module ProtocolSolutionExtensions =
+    open JetBrains.ProjectModel
+    open JetBrains.ReSharper.Host.Features
+    open JetBrains.Rider.Model
+
+    type ISolution with
+        member x.RdFSharpModel =
+            try x.GetProtocolSolution().GetRdFSharpModel()
+            with _ -> null
+
+    type RdFSharpModel with
+        member x.EnableExperimentalFeaturesSafe =
+            match x with
+            | null -> false
+            | fsModel -> fsModel.EnableExperimentalFeatures.Value
