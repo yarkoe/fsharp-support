@@ -7,6 +7,7 @@ open JetBrains.Application
 open JetBrains.Application.Components
 open JetBrains.Application.Environment
 open JetBrains.DataFlow
+open JetBrains.Diagnostics
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.BuildTools
@@ -84,14 +85,19 @@ type MyTestSolutionToolset(lifetime: Lifetime, buildToolContainer: BuildToolCont
     let changed = new Signal<_>(lifetime, "MySolutionToolset::Changed")
 
     let buildTool =
-        let sdkDir = Environment.GetEnvironmentVariable("DOTNET_SDK_DIRECTORY")
-        if sdkDir.IsNullOrEmpty() then
+        let dotnetDirValue = Environment.GetEnvironmentVariable("DOTNET_SDK_DIRECTORY")
+        if dotnetDirValue.IsNullOrEmpty() then
             buildToolContainer.GetAutoDetected(BuildToolEnvironment.EmptyEnvironment)
         else
-            let sdkPath = FileSystemPath.TryParse(sdkDir)
-            let sdks = sdkPath / "sdk"
-            let sdk = sdks.GetChildDirectories().First()
-            CustomBuildTool(sdk / "MSBuild.dll") :> _
+            let dotnetDir = FileSystemPath.TryParse(dotnetDirValue)
+            Logging.Logger.LogMessage(LoggingLevel.INFO, "Dotnet path: {0}", dotnetDir)
+            let sdks = dotnetDir / "sdk"
+            let sdkPath = sdks.GetChildDirectories().First()
+            Logging.Logger.LogMessage(LoggingLevel.INFO, "SDK path: {0}", sdkPath)
+            let msbuildPath = sdkPath / "MSBuild.dll"
+            Assertion.Assert(msbuildPath.ExistsFile, "msbuildPath.ExistsFile")
+
+            CustomBuildTool(sdkPath / "MSBuild.dll") :> _
 
     interface ISolutionToolset with
         member x.GetBuildTool() = buildTool
