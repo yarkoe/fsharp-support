@@ -6,6 +6,7 @@ open System.IO
 open JetBrains.Application
 open JetBrains.Application.Components
 open JetBrains.Application.Environment
+open JetBrains.Application.platforms
 open JetBrains.DataFlow
 open JetBrains.Diagnostics
 open JetBrains.Lifetimes
@@ -13,6 +14,7 @@ open JetBrains.ProjectModel
 open JetBrains.ProjectModel.BuildTools
 open JetBrains.ProjectModel.ProjectsHost.SolutionHost
 open JetBrains.ProjectModel.ProjectsHost.SolutionHost.Impl
+open JetBrains.ReSharper.Host.Features.Toolset
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ItemsContainer
@@ -84,8 +86,10 @@ type MyTestSolutionToolset(lifetime: Lifetime, buildToolContainer: BuildToolCont
 
     let changed = new Signal<_>(lifetime, "MySolutionToolset::Changed")
 
+    let dotnetDirValue = Environment.GetEnvironmentVariable("DOTNET_SDK_DIRECTORY")
+    let dotnetDir = FileSystemPath.TryParse(dotnetDirValue)
+
     let buildTool =
-        let dotnetDirValue = Environment.GetEnvironmentVariable("DOTNET_SDK_DIRECTORY")
         if dotnetDirValue.IsNullOrEmpty() then
             buildToolContainer.GetAutoDetected(BuildToolEnvironment.EmptyEnvironment)
         else
@@ -99,9 +103,19 @@ type MyTestSolutionToolset(lifetime: Lifetime, buildToolContainer: BuildToolCont
 
             CustomBuildTool(sdkPath / "MSBuild.dll") :> _
 
-    interface ISolutionToolset with
+    let cli =
+        if dotnetDirValue.IsNullOrEmpty() then
+//            buildToolContainer.GetAutoDetected(BuildToolEnvironment.EmptyEnvironment)
+            null
+        else
+            DotNetCoreCli.Create(dotnetDir).Cli
+
+    interface IRiderSolutionToolset with
         member x.GetBuildTool() = buildTool
         member x.Changed = changed :> _
+
+        member x.GetMonoRuntime() = null
+        member x.GetDotNetCoreToolset() = DotNetCoreToolset(cli, null)
 
 
 [<ZoneActivator>]
