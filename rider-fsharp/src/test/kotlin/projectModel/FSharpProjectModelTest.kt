@@ -45,8 +45,8 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
         treeOutput.append(fcsHost.dumpSingleProjectMapping.sync(Unit))
     }
 
-    //@Test
-    //@TestEnvironment(solution = "FSharpProjectTree", toolset = ToolsetVersion.TOOLSET_16_CORE)
+    /*@Test
+    @TestEnvironment(solution = "FSharpProjectTree", toolset = ToolsetVersion.TOOLSET_16_CORE)
     fun testFSharpProjectStructure() {
         doTestDumpProjectsView {
             dump2("Init", false, false) {
@@ -121,4 +121,5 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
             }
         }
     }
+    */
 }
