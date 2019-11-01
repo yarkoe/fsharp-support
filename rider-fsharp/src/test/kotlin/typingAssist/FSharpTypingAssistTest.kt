@@ -18,12 +18,12 @@ class FSharpTypingAssistTest: TypingAssistTestBase() {
             arrayOf("closingAngleBracket1", "<"),
             arrayOf("indentAfterEnter", "EditorEnter")
     )
-
+/*
     @Test(dataProvider = "testTypingAssists")
     fun testTyping(caseName: String, input: String) {
         dumpOpenedEditor("Program.fs", "Program.fs") {
             typeOrCallAction(input)
         }
     }
-
+*/
 }
