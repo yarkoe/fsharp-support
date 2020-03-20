@@ -6,6 +6,8 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.console.LanguageConsoleBuilder
 import com.intellij.execution.console.LanguageConsoleView
 import com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler
+import com.intellij.execution.impl.ConsoleViewImpl
+import com.intellij.execution.impl.ConsoleViewUtil
 import com.intellij.execution.process.OSProcessHandler
 import com.intellij.execution.process.OSProcessUtil
 import com.intellij.execution.runners.AbstractConsoleRunnerWithHistory
@@ -38,6 +40,7 @@ import com.intellij.xdebugger.attach.LocalAttachHost
 import com.intellij.xdebugger.attach.XAttachDebuggerProvider
 import com.jetbrains.rdclient.util.idea.pumpMessages
 import com.jetbrains.rider.debugger.DotNetDebugProcess
+import com.jetbrains.rider.ideaInterop.fileTypes.fsharp.highlighting.FSharpSyntaxHighlighter
 import com.jetbrains.rider.model.RdFsiRuntime
 import com.jetbrains.rider.model.RdFsiSessionInfo
 import com.jetbrains.rider.plugins.fsharp.FSharpIcons
@@ -151,7 +154,7 @@ class FsiConsoleRunner(sessionInfo: RdFsiSessionInfo, val fsiHost: FsiHost, debu
         UIUtil.invokeLaterIfNeeded {
             inputSeparatorGutterContentProvider.addLineSeparator(consoleView.historyViewer.document.lineCount)
 
-            consoleView.print(visibleText, ConsoleViewContentType.USER_INPUT)
+            ConsoleViewUtil.printWithHighlighting(consoleView, visibleText, FSharpSyntaxHighlighter())
             consoleView.print("\n", ConsoleViewContentType.NORMAL_OUTPUT)
             EditorUtil.scrollToTheEnd(consoleView.historyViewer)
 
